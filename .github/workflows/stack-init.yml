@@ -1,0 +1,91 @@
+name: Stack Init (OpenAPI + SDKs)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  init:
+    name: Generate OpenAPI + SDKs
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: blueprint
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      mailhog:
+        image: mailhog/mailhog:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/blueprint?schema=public
+      API_URL: http://localhost:4000
+      API_PORT: 4000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      JWT_ISS: blueprint
+      JWT_AUD: blueprint-web
+      JWT_SECRET: change-me-dev-secret
+      ACCESS_TOKEN_TTL_SEC: 900
+      REFRESH_TOKEN_TTL_SEC: 1209600
+      CI: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install deps
+        run: pnpm install
+
+      - name: Prisma generate
+        run: pnpm --filter @blueprint/db generate
+
+      - name: Emit OpenAPI
+        run: pnpm api:openapi
+
+      - name: Sync contracts
+        run: pnpm contracts:sync
+
+      - name: Generate TS SDK
+        run: pnpm sdk:ts
+
+      - name: Generate Dart SDK
+        run: pnpm sdk:dart
+
+      - name: Upload artifacts (OpenAPI + SDKs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-and-sdks
+          if-no-files-found: error
+          path: |
+            apps/api/openapi/openapi.json
+            packages/contracts/dist/openapi.json
+            packages/sdk-ts/**
+            packages/sdk-dart/**
+
+      - name: Job summary
+        run: |
+          echo "### ✅ Stack init OK" >> $GITHUB_STEP_SUMMARY
+          echo "- OpenAPI: apps/api/openapi/openapi.json" >> $GITHUB_STEP_SUMMARY
+          echo "- Synced: packages/contracts/dist/openapi.json" >> $GITHUB_STEP_SUMMARY
+          echo "- SDKs: packages/sdk-ts, packages/sdk-dart (lastet som artifact)" >> $GITHUB_STEP_SUMMARY
