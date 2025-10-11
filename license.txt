@@ -1,0 +1,11 @@
+Copyright (c) 2025 Kyrre Martila. All rights reserved.
+
+This software and its source code are proprietary and confidential.
+Unauthorized copying, modification, distribution, or use of this code,
+via any medium, is strictly prohibited without explicit written permission
+from the copyright holder.
+
+Use of this code is limited to authorized contributors and licensees
+approved by the owner.
+
+Contact: kyrre@martila.no
