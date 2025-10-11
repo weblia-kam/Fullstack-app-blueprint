@@ -7,3 +7,11 @@ Secure monorepo blueprint for web (Next.js), mobile (Flutter), and API (NestJS) 
 3) pnpm sdk:all
 4) pnpm dev
 (Flutter: cd apps/mobile && flutter run)
+
+## CI Quickstart (no terminal)
+Open **Actions → Stack Init (OpenAPI + SDKs) → Run workflow**.  
+This will:
+- install dependencies & run Prisma generate  
+- emit OpenAPI & sync contracts  
+- generate TS & Dart SDKs  
+- upload artifacts you can download from the job
