@@ -1,0 +1,6 @@
+.openapi-generator-ignore
+apis/AuthApi.ts
+apis/MeApi.ts
+apis/index.ts
+index.ts
+runtime.ts
