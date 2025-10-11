@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  displayName  String?
+  createdAt    DateTime @default(now())
+  credentials  Credential[]
+  sessions     Session[]
+}
+model Credential {
+  id          String   @id @default(cuid())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  type        String
+  publicKey   Bytes
+  counter     Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+model Session {
+  id          String   @id @default(cuid())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  refreshJti  String   @unique
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+}
+model MagicLink {
+  id          String   @id @default(cuid())
+  email       String
+  tokenHash   String   @unique
+  usedAt      DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+}

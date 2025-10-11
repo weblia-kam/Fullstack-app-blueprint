@@ -1,0 +1,25 @@
+{
+  "name": "fullstack-app-blueprint",
+  "private": true,
+  "packageManager": "pnpm@9.7.0",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "api:openapi": "pnpm --filter api openapi:emit",
+    "contracts:sync": "node packages/contracts/scripts/sync-openapi.mjs",
+    "sdk:ts": "openapi-generator-cli generate -g typescript-fetch -i packages/contracts/dist/openapi.json -o packages/sdk-ts --additional-properties=useSingleRequestParameter=true,typescriptThreePlus=true",
+    "sdk:dart": "openapi-generator-cli generate -g dart-dio -i packages/contracts/dist/openapi.json -o packages/sdk-dart --additional-properties=pubName=blueprint_sdk",
+    "sdk:all": "pnpm api:openapi && pnpm contracts:sync && pnpm sdk:ts && pnpm sdk:dart",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@openapitools/openapi-generator-cli": "^2.13.4",
+    "prettier": "^3.3.3",
+    "turbo": "^2.1.3",
+    "typescript": "^5.6.3"
+  }
+}

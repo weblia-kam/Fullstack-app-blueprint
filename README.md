@@ -1,18 +1,9 @@
-# Fullstack-app-blueprint
-Secure monorepo blueprint for web and mobile applications – built with **NestJS**, **Next.js (React)**, and **Flutter**, using **OpenAPI contracts** and **enterprise-grade architecture**.
+# Fullstack App Blueprint
+Secure monorepo blueprint for web (Next.js), mobile (Flutter), and API (NestJS) with OpenAPI contracts and SDKs for TS & Dart.
 
-## 🧱 Tech Stack
-- **Backend:** NestJS (TypeScript) + Prisma + Postgres  
-- **Frontend (Web):** Next.js (React)  
-- **Mobile:** Flutter (Dart)  
-- **Contracts:** OpenAPI → generated SDKs for TypeScript and Dart  
-- **Infra:** pnpm + turborepo + Docker (Postgres, Mailhog)  
-
-## 🚀 Quickstart
-```bash
-pnpm install
-docker compose up -d
-pnpm sdk:all
-pnpm dev
-# Flutter:
-cd apps/mobile && flutter run
+## Quickstart
+1) docker compose -f infra/docker-compose.yml up -d
+2) pnpm i
+3) pnpm sdk:all
+4) pnpm dev
+(Flutter: cd apps/mobile && flutter run)
