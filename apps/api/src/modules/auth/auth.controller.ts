@@ -8,9 +8,13 @@ import type { Request, Response } from "express";
 const emailSchema = z.object({ email: z.string().email() });
 const verifySchema = z.object({ email: z.string().email(), token: z.string().min(32) });
 const registerSchema = z.object({
-  username: z.string().min(3).max(32).regex(/^[a-z0-9_\-.]+$/i),
+  firstName: z.string().min(1).max(64),
+  lastName: z.string().min(1).max(64),
   email: z.string().email(),
-  password: z.string().min(8).max(128)
+  phone: z.string().min(7).max(20).regex(/^\+?[0-9\s-]+$/).optional().or(z.literal("").transform(() => undefined)),
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("").transform(() => undefined)),
+  password: z.string().min(8).max(128),
+  acceptedTerms: z.boolean().refine(v => v === true, { message: "Terms must be accepted" })
 });
 const loginSchema = z.object({
   identifier: z.string().min(3),
@@ -62,8 +66,16 @@ export class AuthController {
 
   @Post("register")
   async register(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
-    const { username, email, password } = registerSchema.parse(body);
-    const { accessToken, refreshToken } = await this.auth.register(username, email, password);
+    const data = registerSchema.parse(body);
+    const { accessToken, refreshToken } = await this.auth.registerUser({
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      phone: (data.phone ?? undefined),
+      birthDate: (data.birthDate ?? undefined),
+      password: data.password,
+      acceptedTerms: data.acceptedTerms
+    });
     setAuthCookies(res, { accessToken, refreshToken });
     return { ok: true, accessToken, refreshToken };
   }

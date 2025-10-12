@@ -48,7 +48,7 @@ export default function LoginPage() {
       {tab === "pw" && (
         <form onSubmit={login} style={{ marginTop: 16 }}>
           <input
-            placeholder="username or email"
+            placeholder="email or phone"
             required
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}

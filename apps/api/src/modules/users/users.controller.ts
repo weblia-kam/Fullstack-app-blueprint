@@ -16,7 +16,19 @@ export class UsersController {
     const access = (req.cookies?.access as string) || (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
     if (!access) throw new UnauthorizedException("Missing token");
     const payload = verifyToken(access); // kaster hvis ugyldig/utløpt
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    const u = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!u) return { user: null };
+    // Returner kun "safe" felter
+    const user = {
+      id: u.id,
+      email: u.email,
+      phone: u.phone,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      birthDate: u.birthDate,
+      displayName: u.displayName ?? `${u.firstName} ${u.lastName}`.trim(),
+      createdAt: u.createdAt
+    };
     return { user };
   }
 }

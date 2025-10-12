@@ -49,11 +49,17 @@ async function json(url, opts={}) {
   console.log("✅ E2E auth flow OK");
 
   // register
-  let r = await json(`${base}/auth/register`, { method: "POST", body: JSON.stringify({ username: uname, email: `${uname}@ex.com`, password: pw }) });
+  let r = await json(`${base}/auth/register`, { method: "POST", body: JSON.stringify({
+    firstName: "Test",
+    lastName: uname,
+    email: `${uname}@ex.com`,
+    password: pw,
+    acceptedTerms: true
+  }) });
   must(r.status === 201 || r.status === 200, "register failed");
 
   // login
-  r = await json(`${base}/auth/login`, { method: "POST", body: JSON.stringify({ identifier: uname, password: pw }) });
+  r = await json(`${base}/auth/login`, { method: "POST", body: JSON.stringify({ identifier: `${uname}@ex.com`, password: pw }) });
   must(r.status === 201 || r.status === 200, "login failed");
   must(r.body.accessToken && r.body.refreshToken, "login tokens missing");
 

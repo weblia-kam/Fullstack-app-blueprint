@@ -82,21 +82,59 @@ export class AuthService {
     } catch { /* ignore */ }
   }
 
-  async register(username: string, email: string, password: string) {
+  async registerUser(input: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string | null;
+    birthDate?: string | null;
+    password: string;
+    acceptedTerms: boolean;
+  }) {
+    const { firstName, lastName, email, phone, birthDate, password, acceptedTerms } = input;
+
+    if (!acceptedTerms) throw new BadRequestException("Terms must be accepted");
+
+    // Enkel e-post- og passord-policy (kan strammes senere)
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new BadRequestException("Invalid email");
+    if (password.length < 8 || password.length > 128) throw new BadRequestException("Invalid password length");
+
+    // Telefon (valgfri) – enkel normalisering, fjern mellomrom
+    let normalizedPhone: string | null = null;
+    if (phone && phone.trim()) {
+      normalizedPhone = phone.replace(/\s+/g, "");
+      // tillat + og sifre; enkel sjekk (E.164-lignende)
+      if (!/^\+?[0-9]{7,15}$/.test(normalizedPhone)) {
+        throw new BadRequestException("Invalid phone");
+      }
+    }
+
     const exists = await this.prisma.user.findFirst({
-      where: { OR: [{ email }, { username }] }
+      where: { OR: [{ email }, ...(normalizedPhone ? [{ phone: normalizedPhone }] : [])] }
     });
     if (exists) throw new BadRequestException("User already exists");
 
     const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
-    const user = await this.prisma.user.create({ data: { email, username, passwordHash } });
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        phone: normalizedPhone,
+        firstName,
+        lastName,
+        birthDate: birthDate ? new Date(`${birthDate}T00:00:00.000Z`) : null,
+        passwordHash,
+        acceptedTerms: true,
+        displayName: `${firstName} ${lastName}`.trim()
+      }
+    });
+
     return this.issueForUser(user.id);
   }
 
   async login(identifier: string, password: string) {
     const user = await this.prisma.user.findFirst({
       where: {
-        OR: [{ username: identifier }, { email: identifier }]
+        OR: [{ email: identifier }, { phone: identifier }]
       }
     });
     if (!user || !user.passwordHash) throw new UnauthorizedException("Invalid credentials");
