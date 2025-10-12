@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res } from "@nestjs/common";
+import { Body, Controller, HttpCode, Post, Req, Res } from "@nestjs/common";
 import { ApiBearerAuth, ApiCookieAuth, ApiTags } from "@nestjs/swagger";
 import { z } from "zod";
 import { AuthService } from "./auth.service";
@@ -7,6 +7,15 @@ import type { Request, Response } from "express";
 
 const emailSchema = z.object({ email: z.string().email() });
 const verifySchema = z.object({ email: z.string().email(), token: z.string().min(32) });
+const registerSchema = z.object({
+  username: z.string().min(3).max(32).regex(/^[a-z0-9_\-.]+$/i),
+  email: z.string().email(),
+  password: z.string().min(8).max(128)
+});
+const loginSchema = z.object({
+  identifier: z.string().min(3),
+  password: z.string().min(8)
+});
 
 @ApiTags("auth")
 @Controller("auth")
@@ -49,5 +58,21 @@ export class AuthController {
     await this.auth.logout(bearer || fromCookie);
     clearAuthCookies(res);
     return;
+  }
+
+  @Post("register")
+  async register(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
+    const { username, email, password } = registerSchema.parse(body);
+    const { accessToken, refreshToken } = await this.auth.register(username, email, password);
+    setAuthCookies(res, { accessToken, refreshToken });
+    return { ok: true, accessToken, refreshToken };
+  }
+
+  @Post("login")
+  async login(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
+    const { identifier, password } = loginSchema.parse(body);
+    const { accessToken, refreshToken } = await this.auth.login(identifier, password);
+    setAuthCookies(res, { accessToken, refreshToken });
+    return { ok: true, accessToken, refreshToken };
   }
 }

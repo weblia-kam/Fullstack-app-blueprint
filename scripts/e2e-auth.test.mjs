@@ -1,6 +1,8 @@
 /* Minimal E2E: magic-link → verify → /me → refresh → logout */
 const base = process.env.API_URL || "http://localhost:4000";
 const email = "test@example.com";
+const uname = "user" + Math.random().toString(16).slice(2, 7);
+const pw = "S3curePassw0rd!";
 
 function must(cond, msg) { if (!cond) throw new Error(msg); }
 
@@ -45,4 +47,15 @@ async function json(url, opts={}) {
   must(lo.status === 204, "logout failed");
 
   console.log("✅ E2E auth flow OK");
+
+  // register
+  let r = await json(`${base}/auth/register`, { method: "POST", body: JSON.stringify({ username: uname, email: `${uname}@ex.com`, password: pw }) });
+  must(r.status === 201 || r.status === 200, "register failed");
+
+  // login
+  r = await json(`${base}/auth/login`, { method: "POST", body: JSON.stringify({ identifier: uname, password: pw }) });
+  must(r.status === 201 || r.status === 200, "login failed");
+  must(r.body.accessToken && r.body.refreshToken, "login tokens missing");
+
+  console.log("✅ E2E password flow OK");
 })().catch(e => { console.error("❌ E2E failed:", e.message); process.exit(1); });

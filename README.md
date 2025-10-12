@@ -24,3 +24,8 @@ This will:
 ## Dev login
 - Open **MailHog** at `http://localhost:8025`
 - Use `/login` to request a magic link → click the link in MailHog → you’re redirected to `/profile`.
+
+## Authentication
+- Primary: **Username + Password** (`POST /auth/login`, `POST /auth/register`)
+- Alternative: **Email magic link** (`POST /auth/request-magic-link` → `POST /auth/verify-magic-link`)
+Both issue the same JWT access/refresh tokens with rotation and JTI blacklist.
