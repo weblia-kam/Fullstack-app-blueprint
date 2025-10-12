@@ -88,6 +88,13 @@ export default function LoginPage() {
       )}
 
       {msg && <p style={{ marginTop: 12 }}>{msg}</p>}
+
+      <p style={{ marginTop: 16 }}>
+        Ingen konto?{" "}
+        <a href="/register" style={{ color: "#0066cc" }}>
+          Opprett konto
+        </a>
+      </p>
     </div>
   );
 }
