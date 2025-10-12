@@ -4,18 +4,29 @@ import { randomBytes } from "crypto";
 import * as argon2 from "argon2";
 import { v4 as uuidv4 } from "uuid";
 import { signAccess, signRefresh, verifyToken } from "./jwt.util";
+import { MailerService } from "../mailer/mailer.service";
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly mailer: MailerService) {}
 
   async requestMagicLink(email: string) {
     const token = randomBytes(32).toString("hex");
     const tokenHash = await argon2.hash(token);
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
     await this.prisma.magicLink.create({ data: { email, tokenHash, expiresAt } });
-    // I dev: return token så man kan teste uten e-post. I prod: send via SMTP.
-    return { token }; 
+
+    // Bygg callback-URL inn i web-klienten
+    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    const callback = new URL("/auth/callback", appUrl);
+    callback.searchParams.set("email", email);
+    callback.searchParams.set("token", token);
+
+    // Send e-post (til MailHog i dev)
+    await this.mailer.sendMagicLink(email, callback.toString());
+
+    // Dev-kvalitet: returner token også (enkelt å teste via API)
+    return { token };
   }
 
   async verifyMagicLink(email: string, token: string) {
