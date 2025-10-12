@@ -15,3 +15,8 @@ This will:
 - emit OpenAPI & sync contracts  
 - generate TS & Dart SDKs  
 - upload artifacts you can download from the job
+
+## Health & Tests
+- API health: `GET /health`  
+- Web health: `/api/health`  
+- Run **Actions → Test All (E2E) → Run workflow** to verify the auth flow end-to-end.
