@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Injectable, UnauthorizedException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { randomBytes } from "crypto";
 import * as argon2 from "argon2";
@@ -9,6 +9,15 @@ import { MailerService } from "../mailer/mailer.service";
 @Injectable()
 export class AuthService {
   constructor(private readonly prisma: PrismaService, private readonly mailer: MailerService) {}
+
+  private async issueForUser(userId: string) {
+    const jti = uuidv4();
+    const refreshToken = signRefresh(userId, jti);
+    const accessToken = signAccess(userId);
+    const rtExp = new Date(Date.now() + (Number(process.env.REFRESH_TOKEN_TTL_SEC ?? 1209600) * 1000));
+    await this.prisma.session.create({ data: { userId, refreshJti: jti, expiresAt: rtExp } });
+    return { accessToken, refreshToken };
+  }
 
   async requestMagicLink(email: string) {
     const token = randomBytes(32).toString("hex");
@@ -39,16 +48,9 @@ export class AuthService {
     let user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) user = await this.prisma.user.create({ data: { email } });
 
-    // Opprett ny session (JTI) og tokens
-    const jti = uuidv4();
-    const refreshToken = signRefresh(user.id, jti);
-    const accessToken = signAccess(user.id);
+    const tokens = await this.issueForUser(user.id);
 
-    // Lagre session for rotasjon/blacklist
-    const rtExp = new Date(Date.now() + (Number(process.env.REFRESH_TOKEN_TTL_SEC ?? 1209600) * 1000));
-    await this.prisma.session.create({ data: { userId: user.id, refreshJti: jti, expiresAt: rtExp } });
-
-    return { userId: user.id, accessToken, refreshToken };
+    return { userId: user.id, ...tokens };
   }
 
   async refresh(oldRefresh: string) {
@@ -78,5 +80,28 @@ export class AuthService {
       const p = verifyToken(refreshOrCookie);
       if (p.jti) await this.prisma.session.update({ where: { refreshJti: p.jti }, data: { revokedAt: new Date() } });
     } catch { /* ignore */ }
+  }
+
+  async register(username: string, email: string, password: string) {
+    const exists = await this.prisma.user.findFirst({
+      where: { OR: [{ email }, { username }] }
+    });
+    if (exists) throw new BadRequestException("User already exists");
+
+    const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+    const user = await this.prisma.user.create({ data: { email, username, passwordHash } });
+    return this.issueForUser(user.id);
+  }
+
+  async login(identifier: string, password: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ username: identifier }, { email: identifier }]
+      }
+    });
+    if (!user || !user.passwordHash) throw new UnauthorizedException("Invalid credentials");
+    const ok = await argon2.verify(user.passwordHash, password);
+    if (!ok) throw new UnauthorizedException("Invalid credentials");
+    return this.issueForUser(user.id);
   }
 }
