@@ -38,11 +38,23 @@ class ApiClient {
     );
   }
 
-  Future<void> register({required String username, required String email, required String password}) async {
+  Future<void> register({
+    required String firstName,
+    required String lastName,
+    required String email,
+    String? phone,
+    String? birthDate,
+    required String password,
+    required bool acceptedTerms,
+  }) async {
     final r = await _dio.post('/auth/register', data: {
-      'username': username,
+      'firstName': firstName,
+      'lastName': lastName,
       'email': email,
+      if (phone != null) 'phone': phone,
+      if (birthDate != null) 'birthDate': birthDate,
       'password': password,
+      'acceptedTerms': acceptedTerms,
     });
     final data = r.data as Map<String, dynamic>;
     await _store.saveTokens(access: data['accessToken'] as String, refresh: data['refreshToken'] as String);

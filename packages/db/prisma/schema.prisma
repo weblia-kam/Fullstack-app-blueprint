@@ -6,14 +6,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  username     String?  @unique
-  passwordHash String?
-  displayName  String?
-  createdAt    DateTime @default(now())
-  credentials  Credential[]
-  sessions     Session[]
+  id            String   @id @default(cuid())
+  email         String   @unique
+  phone         String?  @unique
+  firstName     String
+  lastName      String
+  birthDate     DateTime?
+  passwordHash  String?         // null tillates fortsatt for magic-link-brukere
+  acceptedTerms Boolean  @default(false)
+  displayName   String?
+  createdAt     DateTime @default(now())
+  credentials   Credential[]
+  sessions      Session[]
+
+  @@index([firstName, lastName])
 }
 model Credential {
   id          String   @id @default(cuid())
