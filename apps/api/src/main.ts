@@ -4,25 +4,55 @@ import { AppModule } from "./modules/app.module";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
-import { ValidationPipe } from "@nestjs/common";
+import { ValidationPipe, type INestApplication } from "@nestjs/common";
 import { validateSecurityConfig } from "./config/security.config";
-import csurf from "csurf";
-import type { RequestHandler } from "express";
+import type { Request, Response, NextFunction } from "express";
+import { createCsrfMiddleware } from "./middleware/csrf.middleware";
 
 const defaultCorsOrigins = ["http://localhost:3000", "https://app.example.com"];
 
-function buildCorsWhitelist() {
-  const fromEnv = process.env.API_CORS_ORIGINS?.split(",").map((origin) => origin.trim()).filter(Boolean);
-  if (fromEnv && fromEnv.length > 0) {
-    return fromEnv;
-  }
-  return defaultCorsOrigins;
+function parseCorsOrigins(): string[] {
+  return process.env.API_CORS_ORIGINS?.split(",").map((origin) => origin.trim()).filter(Boolean) ?? [];
 }
 
-const csrfBypass = [/^\/api\/v1\/mobile/];
+function configureCors(app: INestApplication) {
+  const whitelist = parseCorsOrigins();
+  const allowedOrigins = whitelist.length > 0 ? whitelist : defaultCorsOrigins;
+  const allowedMethods = "GET,POST,PUT,PATCH,DELETE,OPTIONS";
+  const allowedHeaders = "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-csrf-token";
 
-function shouldBypassCsrf(pathname: string) {
-  return csrfBypass.some((pattern) => pattern.test(pathname));
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const origin = req.headers.origin as string | undefined;
+
+    if (!origin) {
+      if (req.method === "OPTIONS") {
+        res.header("Access-Control-Allow-Credentials", "true");
+        res.header("Access-Control-Allow-Methods", allowedMethods);
+        res.header("Access-Control-Allow-Headers", allowedHeaders);
+        return res.sendStatus(200);
+      }
+      return next();
+    }
+
+    if (!allowedOrigins.includes(origin)) {
+      if (req.method === "OPTIONS") {
+        return res.sendStatus(403);
+      }
+      return res.status(403).json({ message: "Origin not allowed" });
+    }
+
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Vary", "Origin");
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Methods", allowedMethods);
+    res.header("Access-Control-Allow-Headers", allowedHeaders);
+
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+
+    return next();
+  });
 }
 
 async function bootstrap() {
@@ -31,19 +61,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix("api/v1");
 
-  const whitelist = buildCorsWhitelist();
-  app.enableCors({
-    credentials: true,
-    origin(origin, callback) {
-      if (!origin) {
-        return callback(null, true);
-      }
-      if (whitelist.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(null, false);
-    }
-  });
+  configureCors(app);
 
   // HTTP security headers (CSP håndteres av web)
   app.use(
@@ -59,47 +77,15 @@ async function bootstrap() {
   // Cookies (HttpOnly på svar)
   app.use(cookieParser(process.env.COOKIE_SECRET));
 
+  // CSRF (må ligge etter cookie-parser)
+  app.use(createCsrfMiddleware());
+
   // Rate limiting (streng på /auth/*, moderat globalt)
   app.use(
     "/api/v1/auth",
     rateLimit({ windowMs: 10 * 60 * 1000, limit: 100, standardHeaders: true, legacyHeaders: false })
   );
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 1000, standardHeaders: true, legacyHeaders: false }));
-
-  const csrfProtection = csurf({
-    cookie: {
-      key: "csrf-secret",
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      domain: process.env.COOKIE_DOMAIN || undefined
-    }
-  }) as RequestHandler;
-
-  app.use((req, res, next) => {
-    if (shouldBypassCsrf(req.path)) {
-      return next();
-    }
-    return csrfProtection(req, res, (err) => {
-      if (err) {
-        return next(err);
-      }
-      if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
-        const token = (req as typeof req & { csrfToken?: () => string }).csrfToken?.();
-        if (token) {
-          res.cookie("csrf-token", token, {
-            httpOnly: false,
-            sameSite: "strict",
-            secure: process.env.NODE_ENV === "production",
-            path: "/",
-            domain: process.env.COOKIE_DOMAIN || undefined
-          });
-        }
-      }
-      return next();
-    });
-  });
 
   // Input-validering (whitelist + transform)
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));

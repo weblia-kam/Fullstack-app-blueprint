@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+import { apiFetch, useCsrfToken } from "../../../lib/api";
 
 export default function LoginPage() {
   const [tab, setTab] = useState<"pw" | "ml">("pw");
@@ -9,14 +8,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const { token: csrfToken, refresh: refreshCsrf } = useCsrfToken();
 
   const login = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg("Signing in…");
-    const r = await fetch(`${API}/auth/login`, {
+    if (!csrfToken) {
+      await refreshCsrf();
+    }
+    const r = await apiFetch("/auth/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ identifier, password }),
+      body: JSON.stringify({ identifier, password })
     });
     if (r.ok) window.location.href = "/profile";
     else setMsg("Login failed");
@@ -25,10 +28,13 @@ export default function LoginPage() {
   const sendLink = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg("Sending link…");
-    const r = await fetch(`${API}/auth/request-magic-link`, {
+    if (!csrfToken) {
+      await refreshCsrf();
+    }
+    const r = await apiFetch("/auth/request-magic-link", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email })
     });
     setMsg(r.ok ? "Check MailHog (:8025) for the signin link." : "Failed to send link");
   };
