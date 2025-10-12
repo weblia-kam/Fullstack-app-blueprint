@@ -86,6 +86,11 @@ class _LoginScreenState extends State<LoginScreen> {
             ElevatedButton(onPressed: busy ? null : _verify, child: const Text('Verify')),
           ],
           if (info != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(info!)),
+          const SizedBox(height: 24),
+          TextButton(
+            onPressed: busy ? null : () => Navigator.of(context).pushReplacementNamed('/register'),
+            child: const Text('Opprett konto'),
+          ),
         ]),
       ),
     );

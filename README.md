@@ -31,6 +31,11 @@ This will:
 Both issue the same JWT access/refresh tokens with rotation and JTI blacklist.
 
 ## Registration (Web)
-Route: `/register`  
-Fields: firstName, lastName, email, phone, birthDate, password, acceptedTerms  
+Route: `/register`
+Fields: firstName, lastName, email, phone, birthDate, password, acceptedTerms
 → calls `POST /auth/register`, redirects to `/profile`
+
+## Registration (Mobile)
+Screen: `RegisterScreen` → calls `/auth/register`  
+Fields: firstName, lastName, email, phone, birthDate, password, acceptedTerms  
+Redirects to profile after success.

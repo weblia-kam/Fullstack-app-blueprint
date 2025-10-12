@@ -60,6 +60,26 @@ class ApiClient {
     await _store.saveTokens(access: data['accessToken'] as String, refresh: data['refreshToken'] as String);
   }
 
+  Future<void> registerFull({
+    required String firstName,
+    required String lastName,
+    required String email,
+    String? phone,
+    String? birthDate,
+    required String password,
+    required bool acceptedTerms,
+  }) {
+    return register(
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      phone: phone,
+      birthDate: birthDate,
+      password: password,
+      acceptedTerms: acceptedTerms,
+    );
+  }
+
   Future<void> login({required String identifier, required String password}) async {
     final r = await _dio.post('/auth/login', data: {
       'identifier': identifier,
