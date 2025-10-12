@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+import { apiFetch, useCsrfToken } from "../../../lib/api";
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -15,6 +14,7 @@ export default function RegisterPage() {
   });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const { token: csrfToken, refresh: refreshCsrf } = useCsrfToken();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -26,7 +26,10 @@ export default function RegisterPage() {
     setLoading(true);
     setMsg("Oppretter konto …");
     try {
-      const res = await fetch(`${API}/auth/register`, {
+      if (!csrfToken) {
+        await refreshCsrf();
+      }
+      const res = await apiFetch("/auth/register", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -36,9 +39,8 @@ export default function RegisterPage() {
           phone: form.phone.trim(),
           birthDate: form.birthDate || undefined,
           password: form.password,
-          acceptedTerms: form.acceptedTerms,
-        }),
-        credentials: "include",
+          acceptedTerms: form.acceptedTerms
+        })
       });
       if (res.ok) {
         setMsg("Konto opprettet!");

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getApiBaseUrl, getCsrfTokenFromCookieHeader } from "../../../lib/api";
 
 function isSecureRequest(req: Request) {
   const forwarded = req.headers.get("x-forwarded-proto");
@@ -13,12 +14,22 @@ export async function GET(req: Request) {
   const token = url.searchParams.get("token");
   if (!email || !token) return NextResponse.redirect(new URL("/login", url.origin));
 
-  const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+  const api = getApiBaseUrl();
+  const headers = new Headers({ "content-type": "application/json" });
+  const cookieHeader = req.headers.get("cookie");
+  if (cookieHeader) {
+    headers.set("cookie", cookieHeader);
+    const csrfToken = getCsrfTokenFromCookieHeader(cookieHeader);
+    if (csrfToken) {
+      headers.set("x-csrf-token", csrfToken);
+    }
+  }
   const r = await fetch(`${api}/auth/verify-magic-link`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers,
     body: JSON.stringify({ email, token }),
-    redirect: "manual"
+    redirect: "manual",
+    credentials: "include"
   });
 
   if (!r.ok) {

@@ -11,6 +11,8 @@ Secure monorepo blueprint for web (Next.js), mobile (Flutter), and API (NestJS) 
 ### Required environment
 - Copy `env.example` to `.env` in the project root.
 - Set a **strong** `JWT_SECRET` value before starting the API. The server will fail fast if it is missing.
+- `API_CORS_ORIGINS` must contain every web origin that should be able to call the API (comma separated).
+- `CSRF_COOKIE_NAME` defines the non-HttpOnly cookie that the API exposes to browsers for CSRF protection (defaults to `XSRF-TOKEN`).
 
 ## CI Quickstart (no terminal)
 Open **Actions → Stack Init (OpenAPI + SDKs) → Run workflow**.  
