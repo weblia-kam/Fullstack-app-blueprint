@@ -1,24 +1,32 @@
 import { Response } from "express";
+
 const isProd = process.env.NODE_ENV === "production";
+const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
+const accessMaxAge = Number(process.env.ACCESS_TOKEN_TTL_SEC ?? 900) * 1000;
+const refreshMaxAge = Number(process.env.REFRESH_TOKEN_TTL_SEC ?? 1209600) * 1000;
+
 export function setAuthCookies(res: Response, tokens: { accessToken: string; refreshToken: string }) {
-  // access cookie (kort TTL)
+  const baseOptions = { domain: cookieDomain, path: "/" as const };
+
   res.cookie("access", tokens.accessToken, {
+    ...baseOptions,
     httpOnly: true,
     secure: isProd,
     sameSite: "lax",
-    maxAge: Number(process.env.ACCESS_TOKEN_TTL_SEC ?? 900) * 1000,
-    path: "/"
+    maxAge: accessMaxAge
   });
-  // refresh cookie (lengre TTL)
+
   res.cookie("sid", tokens.refreshToken, {
+    ...baseOptions,
     httpOnly: true,
     secure: isProd,
-    sameSite: "lax",
-    maxAge: Number(process.env.REFRESH_TOKEN_TTL_SEC ?? 1209600) * 1000,
-    path: "/"
+    sameSite: "strict",
+    maxAge: refreshMaxAge
   });
 }
+
 export function clearAuthCookies(res: Response) {
-  res.clearCookie("access", { path: "/" });
-  res.clearCookie("sid", { path: "/" });
+  const options = { domain: cookieDomain, path: "/" as const };
+  res.clearCookie("access", options);
+  res.clearCookie("sid", options);
 }

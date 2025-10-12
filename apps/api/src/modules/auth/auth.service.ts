@@ -3,18 +3,28 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { randomBytes } from "crypto";
 import * as argon2 from "argon2";
 import { v4 as uuidv4 } from "uuid";
-import { signAccess, signRefresh, verifyToken } from "./jwt.util";
 import { MailerService } from "../mailer/mailer.service";
+import { JwtUtil } from "./jwt.util";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService, private readonly mailer: MailerService) {}
+  private readonly refreshTtlMs: number;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailer: MailerService,
+    private readonly jwt: JwtUtil,
+    private readonly config: ConfigService
+  ) {
+    this.refreshTtlMs = Number(this.config.get("REFRESH_TOKEN_TTL_SEC") ?? 1209600) * 1000;
+  }
 
   private async issueForUser(userId: string) {
     const jti = uuidv4();
-    const refreshToken = signRefresh(userId, jti);
-    const accessToken = signAccess(userId);
-    const rtExp = new Date(Date.now() + (Number(process.env.REFRESH_TOKEN_TTL_SEC ?? 1209600) * 1000));
+    const refreshToken = this.jwt.signRefresh(userId, jti);
+    const accessToken = this.jwt.signAccess(userId);
+    const rtExp = new Date(Date.now() + this.refreshTtlMs);
     await this.prisma.session.create({ data: { userId, refreshJti: jti, expiresAt: rtExp } });
     return { accessToken, refreshToken };
   }
@@ -54,7 +64,7 @@ export class AuthService {
   }
 
   async refresh(oldRefresh: string) {
-    const payload = verifyToken(oldRefresh); // kaster ved ugyldig/utløpt
+    const payload = this.jwt.verifyToken(oldRefresh); // kaster ved ugyldig/utløpt
     if (!payload.sub || !payload.jti) throw new UnauthorizedException("Malformed token");
 
     // Sørg for at JTI finnes og ikke er revokert/utløpt
@@ -66,9 +76,9 @@ export class AuthService {
     // Roter: revoker gammel, opprett ny JTI + tokens
     await this.prisma.session.update({ where: { refreshJti: payload.jti }, data: { revokedAt: new Date() } });
     const newJti = uuidv4();
-    const refreshToken = signRefresh(payload.sub, newJti);
-    const accessToken = signAccess(payload.sub);
-    const rtExp = new Date(Date.now() + (Number(process.env.REFRESH_TOKEN_TTL_SEC ?? 1209600) * 1000));
+    const refreshToken = this.jwt.signRefresh(payload.sub, newJti);
+    const accessToken = this.jwt.signAccess(payload.sub);
+    const rtExp = new Date(Date.now() + this.refreshTtlMs);
     await this.prisma.session.create({ data: { userId: payload.sub, refreshJti: newJti, expiresAt: rtExp } });
 
     return { accessToken, refreshToken };
@@ -77,7 +87,7 @@ export class AuthService {
   async logout(refreshOrCookie: string | null) {
     if (!refreshOrCookie) return;
     try {
-      const p = verifyToken(refreshOrCookie);
+      const p = this.jwt.verifyToken(refreshOrCookie);
       if (p.jti) await this.prisma.session.update({ where: { refreshJti: p.jti }, data: { revokedAt: new Date() } });
     } catch { /* ignore */ }
   }
