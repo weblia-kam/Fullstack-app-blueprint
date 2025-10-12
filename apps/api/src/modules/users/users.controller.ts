@@ -1,13 +1,13 @@
 import { Controller, Get, Req, UnauthorizedException } from "@nestjs/common";
 import { ApiBearerAuth, ApiCookieAuth, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
-import { verifyToken } from "../auth/jwt.util";
 import { PrismaService } from "../../prisma/prisma.service";
+import { JwtUtil } from "../auth/jwt.util";
 
 @ApiTags("me")
 @Controller("me")
 export class UsersController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly jwt: JwtUtil) {}
 
   @Get()
   @ApiBearerAuth()
@@ -15,7 +15,7 @@ export class UsersController {
   async me(@Req() req: Request) {
     const access = (req.cookies?.access as string) || (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
     if (!access) throw new UnauthorizedException("Missing token");
-    const payload = verifyToken(access); // kaster hvis ugyldig/utløpt
+    const payload = this.jwt.verifyToken(access); // kaster hvis ugyldig/utløpt
     const u = await this.prisma.user.findUnique({ where: { id: payload.sub } });
     if (!u) return { user: null };
     // Returner kun "safe" felter
