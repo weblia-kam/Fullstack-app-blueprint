@@ -8,6 +8,10 @@ Secure monorepo blueprint for web (Next.js), mobile (Flutter), and API (NestJS) 
 4) pnpm dev
 (Flutter: cd apps/mobile && flutter run)
 
+### Required environment
+- Copy `env.example` to `.env` in the project root.
+- Set a **strong** `JWT_SECRET` value before starting the API. The server will fail fast if it is missing.
+
 ## CI Quickstart (no terminal)
 Open **Actions → Stack Init (OpenAPI + SDKs) → Run workflow**.  
 This will:
