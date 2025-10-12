@@ -17,6 +17,10 @@ This will:
 - upload artifacts you can download from the job
 
 ## Health & Tests
-- API health: `GET /health`  
-- Web health: `/api/health`  
+- API health: `GET /health`
+- Web health: `/api/health`
 - Run **Actions → Test All (E2E) → Run workflow** to verify the auth flow end-to-end.
+
+## Dev login
+- Open **MailHog** at `http://localhost:8025`
+- Use `/login` to request a magic link → click the link in MailHog → you’re redirected to `/profile`.
