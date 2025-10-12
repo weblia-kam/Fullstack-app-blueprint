@@ -1,0 +1,59 @@
+name: Test All (E2E)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: blueprint
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      mailhog:
+        image: mailhog/mailhog:latest
+        ports: ["1025:1025", "8025:8025"]
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/blueprint?schema=public
+      API_URL: http://localhost:4000
+      API_PORT: 4000
+      JWT_ISS: blueprint
+      JWT_AUD: blueprint-web
+      JWT_SECRET: change-me-dev-secret
+      ACCESS_TOKEN_TTL_SEC: 900
+      REFRESH_TOKEN_TTL_SEC: 1209600
+      CI: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: pnpm/action-setup@v4
+      - name: Install
+        run: pnpm install
+      - name: Generate Prisma client
+        run: pnpm --filter @blueprint/db generate
+      - name: Push schema (no migrations)
+        run: pnpm db:push
+      - name: Build API
+        run: pnpm --filter api build
+      - name: Start API
+        run: node apps/api/dist/main.js &
+      - name: Wait for API
+        run: |
+          for i in {1..30}; do
+            curl -fsS http://localhost:4000/health && exit 0 || sleep 2
+          done
+          echo "API did not start" && exit 1
+      - name: Run E2E
+        run: pnpm test:e2e
