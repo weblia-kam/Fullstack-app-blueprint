@@ -5,6 +5,7 @@ dist
 .next
 .env
 .env.*
+!.env.prod.example
 pnpm-lock.yaml
 coverage
 .prisma

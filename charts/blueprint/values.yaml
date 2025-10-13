@@ -1,0 +1,40 @@
+replicaCount:
+  api: 1
+  web: 1
+
+image:
+  api: yourrepo/blueprint-api:latest
+  web: yourrepo/blueprint-web:latest
+
+service:
+  api:
+    type: ClusterIP
+    port: 3000
+  web:
+    type: ClusterIP
+    port: 3000
+
+ingress:
+  enabled: true
+  className: ""
+  host: example.com
+  tlsSecretName: ""
+
+env:
+  API:
+    NODE_ENV: production
+    NODE_OPTIONS: --max-old-space-size=256
+    JWT_SECRET: ""
+    COOKIE_SECRET: ""
+    ENCRYPTION_KEY: ""
+    DATABASE_URL: ""
+    API_CORS_ORIGINS: ""
+  WEB:
+    NODE_ENV: production
+    NODE_OPTIONS: --max-old-space-size=256
+    API_BASE_PATH: /api/v1
+    API_ORIGIN: http://blueprint-api:3000
+
+resources:
+  api: {}
+  web: {}

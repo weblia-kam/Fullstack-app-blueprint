@@ -1,0 +1,4 @@
+apiVersion: v2
+name: blueprint
+version: 0.1.0
+description: Helm chart for Blueprint API and Web
