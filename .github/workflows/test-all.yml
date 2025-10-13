@@ -1,12 +1,22 @@
 name: Test All
 
 on:
-  push:
-  pull_request:
+  workflow_dispatch: {}
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   unit:
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      JWT_SECRET: test-secret
+      COOKIE_SECRET: test-cookie
+      ENCRYPTION_KEY: test-encryption
+      API_CORS_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/testdb?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
@@ -36,6 +46,13 @@ jobs:
 
   contract:
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      JWT_SECRET: test-secret
+      COOKIE_SECRET: test-cookie
+      ENCRYPTION_KEY: test-encryption
+      API_CORS_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/testdb?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
@@ -59,11 +76,13 @@ jobs:
 
   e2e-web:
     runs-on: ubuntu-latest
-    services:
-      web:
-        image: node:lts
-        ports:
-          - "3000:3000"
+    env:
+      NODE_ENV: test
+      JWT_SECRET: test-secret
+      COOKIE_SECRET: test-cookie
+      ENCRYPTION_KEY: test-encryption
+      API_CORS_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/testdb?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3
@@ -84,6 +103,11 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install Playwright browsers
         run: pnpm --filter ./apps/web exec playwright install --with-deps
+      - name: Build and start web app
+        run: pnpm --filter ./apps/web build && pnpm --filter ./apps/web start &
+        shell: bash
+      - name: Wait for web app
+        run: npx wait-on http://localhost:3000
       - name: Run web E2E tests
         env:
           PLAYWRIGHT_API_ORIGIN: http://localhost:4000
@@ -97,6 +121,13 @@ jobs:
 
   e2e-mobile:
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      JWT_SECRET: test-secret
+      COOKIE_SECRET: test-cookie
+      ENCRYPTION_KEY: test-encryption
+      API_CORS_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/testdb?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
