@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, Post, Req, Res, UnauthorizedException } from "@nestjs/common";
-import { ApiBearerAuth, ApiCookieAuth, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiCookieAuth, ApiHideProperty, ApiOkResponse, ApiProperty, ApiTags } from "@nestjs/swagger";
 import { z } from "zod";
 import { AuthService } from "./auth.service";
 import { setAuthCookies, clearAuthCookies } from "./cookie.util";
@@ -21,31 +21,62 @@ const loginSchema = z.object({
   password: z.string().min(8)
 });
 
+class MagicLinkResponseDto {
+  @ApiProperty({ example: true })
+  ok!: boolean;
+
+  @ApiHideProperty()
+  devToken?: string;
+}
+
+class TokenPairResponseDto {
+  @ApiProperty({ example: true })
+  ok!: boolean;
+
+  @ApiProperty()
+  accessToken!: string;
+
+  @ApiProperty()
+  refreshToken!: string;
+}
+
 @ApiTags("auth")
 @Controller("auth")
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post("request-magic-link")
-  async requestMagicLink(@Body() body: unknown) {
+  @ApiOkResponse({ type: MagicLinkResponseDto })
+  async requestMagicLink(@Body() body: unknown): Promise<MagicLinkResponseDto> {
     const { email } = emailSchema.parse(body);
     const { token } = await this.auth.requestMagicLink(email);
-    // DEV: Returner token i respons for enkel test (i prod sendes på e-post)
-    return { ok: true, devToken: token };
+    const response: MagicLinkResponseDto = { ok: true };
+    if (process.env.NODE_ENV !== "production") {
+      response.devToken = token;
+    }
+    return response;
   }
 
   @Post("verify-magic-link")
-  async verifyMagicLink(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
+  @ApiOkResponse({ type: TokenPairResponseDto })
+  async verifyMagicLink(
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<TokenPairResponseDto> {
     const { email, token } = verifySchema.parse(body);
     const { accessToken, refreshToken } = await this.auth.verifyMagicLink(email, token);
     setAuthCookies(res, { accessToken, refreshToken });
-    return { ok: true, accessToken, refreshToken }; // mobilklient kan bruke disse
+    return { ok: true, accessToken, refreshToken };
   }
 
   @Post("refresh")
   @ApiBearerAuth()
   @ApiCookieAuth()
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  @ApiOkResponse({ type: TokenPairResponseDto })
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<TokenPairResponseDto> {
     const bearer = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "") || null;
     const fromCookie = (req.cookies?.sid as string) || null;
     const token = bearer || fromCookie;
@@ -66,7 +97,11 @@ export class AuthController {
   }
 
   @Post("register")
-  async register(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
+  @ApiOkResponse({ type: TokenPairResponseDto })
+  async register(
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<TokenPairResponseDto> {
     const data = registerSchema.parse(body);
     const { accessToken, refreshToken } = await this.auth.registerUser({
       firstName: data.firstName,
@@ -82,7 +117,11 @@ export class AuthController {
   }
 
   @Post("login")
-  async login(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
+  @ApiOkResponse({ type: TokenPairResponseDto })
+  async login(
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<TokenPairResponseDto> {
     const { identifier, password } = loginSchema.parse(body);
     const { accessToken, refreshToken } = await this.auth.login(identifier, password);
     setAuthCookies(res, { accessToken, refreshToken });

@@ -1,5 +1,7 @@
 node_modules
 dist
+!packages/contracts/dist/
+!packages/contracts/dist/**
 .next
 .env
 .env.*

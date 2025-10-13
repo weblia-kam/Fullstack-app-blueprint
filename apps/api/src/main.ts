@@ -56,11 +56,37 @@ function configureCors(app: INestApplication) {
   });
 }
 
+const API_PREFIX = "api/v1";
+
+async function emitOpenApiDocument(app: INestApplication) {
+  const { SwaggerModule, DocumentBuilder } = await import("@nestjs/swagger");
+  const config = new DocumentBuilder()
+    .setTitle("Blueprint API")
+    .setVersion("1.0.0")
+    .addServer(`/api/v1`)
+    .addCookieAuth("sid", { type: "apiKey", in: "cookie" })
+    .addBearerAuth()
+    .build();
+  const doc = SwaggerModule.createDocument(app, config, { deepScanRoutes: true });
+  const { writeFileSync, mkdirSync } = await import("node:fs");
+  const outputDir = "packages/contracts";
+  mkdirSync(outputDir, { recursive: true });
+  writeFileSync(`${outputDir}/openapi.v1.json`, JSON.stringify(doc, null, 2));
+  return doc;
+}
+
 async function bootstrap() {
   validateSecurityConfig();
 
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix("api/v1");
+  app.setGlobalPrefix(API_PREFIX, { exclude: [] });
+
+  app.use("/api", (req: Request, res: Response, next: NextFunction) => {
+    if (req.url === "/v1" || req.url.startsWith("/v1/")) {
+      return next();
+    }
+    return res.status(410).json({ error: "API version required. Use /api/v1" });
+  });
 
   configureCors(app);
 
@@ -83,7 +109,7 @@ async function bootstrap() {
 
   // Rate limiting (streng på /auth/*, moderat globalt)
   app.use(
-    "/api/v1/auth",
+    `/${API_PREFIX}/auth`,
     rateLimit({ windowMs: 10 * 60 * 1000, limit: 100, standardHeaders: true, legacyHeaders: false })
   );
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 1000, standardHeaders: true, legacyHeaders: false }));
@@ -94,26 +120,13 @@ async function bootstrap() {
   // Domenefeil → HTTP-svar
   app.useGlobalInterceptors(new DomainErrorInterceptor());
 
-  // OpenAPI emit-modus (brukes av sdk:all)
-  if (process.env.EMIT_OPENAPI === "1") {
-    const { SwaggerModule, DocumentBuilder } = await import("@nestjs/swagger");
-    const cfg = new DocumentBuilder()
-      .setTitle("Blueprint API")
-      .setVersion(process.env.API_VERSION ?? "0.1.0")
-      .addCookieAuth("sid", { type: "apiKey", in: "cookie" })
-      .addBearerAuth()
-      .build();
-    const doc = SwaggerModule.createDocument(app, cfg, { deepScanRoutes: true });
-    const { writeFileSync, mkdirSync } = await import("node:fs");
-    const outputDir = "packages/contracts";
-    mkdirSync(outputDir, { recursive: true });
-    writeFileSync(`${outputDir}/openapi.v1.json`, JSON.stringify(doc, null, 2));
-    process.exit(0);
+  const shouldEmitOpenApi = process.env.NODE_ENV !== "production" || process.env.EMIT_OPENAPI === "1";
+  if (shouldEmitOpenApi) {
+    await emitOpenApiDocument(app);
+    if (process.env.EMIT_OPENAPI === "1") {
+      process.exit(0);
+    }
   }
-
-  app.use(/^\/(auth|users|health)(\/|$)/, (_req: unknown, res: any) => {
-    res.status(410).json({ error: "This endpoint has moved to /api/v1" });
-  });
 
   await app.listen(process.env.PORT ?? 4000);
   // eslint-disable-next-line no-console
