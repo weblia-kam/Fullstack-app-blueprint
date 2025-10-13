@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post, Req, Res } from "@nestjs/common";
+import { Body, Controller, HttpCode, Post, Req, Res, UnauthorizedException } from "@nestjs/common";
 import { ApiBearerAuth, ApiCookieAuth, ApiTags } from "@nestjs/swagger";
 import { z } from "zod";
 import { AuthService } from "./auth.service";
@@ -49,7 +49,8 @@ export class AuthController {
     const bearer = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "") || null;
     const fromCookie = (req.cookies?.sid as string) || null;
     const token = bearer || fromCookie;
-    const tokens = await this.auth.refresh(token!);
+    if (!token) throw new UnauthorizedException("Refresh token required");
+    const tokens = await this.auth.refresh(token);
     setAuthCookies(res, tokens);
     return { ok: true, ...tokens };
   }
