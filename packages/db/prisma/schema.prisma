@@ -1,10 +1,12 @@
 generator client {
   provider = "prisma-client-js"
 }
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
@@ -16,36 +18,56 @@ model User {
   acceptedTerms Boolean  @default(false)
   displayName   String?
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     String?  @db.VarChar(255)
+  updatedBy     String?  @db.VarChar(255)
   credentials   Credential[]
   sessions      Session[]
 
   @@index([firstName, lastName])
+  @@index([email])
 }
+
 model Credential {
   id          String   @id @default(cuid())
-  user        User     @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String
   type        String
   publicKey   Bytes
   counter     Int      @default(0)
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?  @db.VarChar(255)
+  updatedBy   String?  @db.VarChar(255)
 }
+
 model Session {
   id          String   @id @default(cuid())
-  user        User     @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String
-  refreshJti  String   @unique
+  token       String   @unique
   ip          String?
   userAgent   String?
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?  @db.VarChar(255)
+  updatedBy   String?  @db.VarChar(255)
   expiresAt   DateTime
   revokedAt   DateTime?
+
+  @@index([token])
 }
+
 model MagicLink {
   id          String   @id @default(cuid())
   email       String
-  tokenHash   String   @unique
+  token       String   @unique
   usedAt      DateTime?
   expiresAt   DateTime
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?  @db.VarChar(255)
+  updatedBy   String?  @db.VarChar(255)
+
+  @@index([email])
 }
