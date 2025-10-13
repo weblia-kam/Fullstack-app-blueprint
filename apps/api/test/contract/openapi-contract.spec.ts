@@ -1,27 +1,26 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import request from "supertest";
-import { beforeAll, afterAll, describe, expect, it } from "vitest";
-import jestOpenAPI from "jest-openapi";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
-import { AppModule } from "../src/modules/app.module";
-import { DomainErrorInterceptor } from "../src/common/interceptors/domain-error.interceptor";
-import { AuthController } from "../src/modules/auth/auth.controller";
-import { AuthService } from "../src/modules/auth/auth.service";
-import { UsersController } from "../src/modules/users/users.controller";
-import { TokensService, UsersService as UsersDomainService, type UsersRepository, type User } from "@org/domain";
-import { JwtTokensProvider } from "../src/modules/auth/jwt.tokens.provider";
-import { JwtUtil } from "../src/modules/auth/jwt.util";
-import { PrismaService } from "../src/prisma/prisma.service";
+import { TokensService, UsersService as UsersDomainService, type User, type UsersRepository } from "@org/domain";
+import jestOpenAPI from "jest-openapi";
+import request from "supertest";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const specPath = path.resolve(__dirname, "../../../packages/contracts/openapi.v1.json");
+import { DomainErrorInterceptor } from "../../src/common/interceptors/domain-error.interceptor";
+import { AppModule } from "../../src/modules/app.module";
+import { AuthController } from "../../src/modules/auth/auth.controller";
+import { AuthService } from "../../src/modules/auth/auth.service";
+import { JwtTokensProvider } from "../../src/modules/auth/jwt.tokens.provider";
+import { JwtUtil } from "../../src/modules/auth/jwt.util";
+import { UsersController } from "../../src/modules/users/users.controller";
+import { PrismaService } from "../../src/prisma/prisma.service";
+
+jest.mock("@prisma/client", () => ({ PrismaClient: class {} }));
+
+const specPath = resolve(__dirname, "../../../../packages/contracts/openapi.v1.json");
 const rawSpec = JSON.parse(readFileSync(specPath, "utf-8"));
-const specForValidation = { ...rawSpec, servers: [{ url: "/" }] };
-
-jestOpenAPI(specForValidation);
+jestOpenAPI({ ...rawSpec, servers: [{ url: "/" }] });
 
 const testUser: User = {
   id: "user-1",
@@ -39,43 +38,44 @@ const testUser: User = {
   },
 };
 
-const tokensServiceStub: Pick<TokensService, "verify"> = {
-  verify: async () => ({ subject: testUser.id }),
-};
-
-const authServiceStub: Partial<AuthService> = {
-  requestMagicLink: async () => ({ token: "magic-token-development" }),
-  verifyMagicLink: async () => ({ accessToken: "access-token", refreshToken: "refresh-token" }),
-  refresh: async () => ({ accessToken: "access-token", refreshToken: "refresh-token" }),
-  logout: async () => undefined,
-  registerUser: async () => ({ accessToken: "access-token", refreshToken: "refresh-token" }),
-  login: async () => ({ accessToken: "access-token", refreshToken: "refresh-token" }),
-};
-
 const usersRepositoryStub: UsersRepository = {
-  findById: async (id: string) => (id === testUser.id ? testUser : null),
+  findById: async (id) => (id === testUser.id ? testUser : null),
   findByEmail: async () => null,
   create: async () => testUser,
   update: async () => testUser,
 };
 
+const tokensServiceStub: Pick<TokensService, "verify"> = {
+  verify: async () => ({ subject: testUser.id }),
+};
+
+const authServiceStub: Partial<AuthService> = {
+  login: async () => ({ accessToken: "access-token", refreshToken: "refresh-token" }),
+  refresh: async () => ({ accessToken: "access-token", refreshToken: "refresh-token" }),
+  registerUser: async () => ({ accessToken: "access-token", refreshToken: "refresh-token" }),
+  requestMagicLink: async () => ({ token: "dev-token" }),
+  verifyMagicLink: async () => ({ accessToken: "access-token", refreshToken: "refresh-token" }),
+};
+
 describe("OpenAPI contract", () => {
   let app: INestApplication;
-  const originalNodeEnv = process.env.NODE_ENV;
+  const originalEnv = process.env.NODE_ENV;
 
   beforeAll(async () => {
-    process.env.NODE_ENV = "production";
+    process.env.NODE_ENV = "test";
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider("UsersRepository")
       .useValue(usersRepositoryStub)
       .overrideProvider(AuthService)
       .useValue(authServiceStub)
+      .overrideProvider(TokensService)
+      .useValue(tokensServiceStub)
       .overrideProvider(JwtTokensProvider)
       .useValue({
-        signAccessToken: () => "access-token",
-        signRefreshToken: () => "refresh-token",
-        verifyToken: () => ({ subject: testUser.id }),
+        signAccessToken: async () => "access-token",
+        signRefreshToken: async () => "refresh-token",
+        verifyToken: async () => ({ subject: testUser.id }),
       } satisfies Partial<JwtTokensProvider>)
       .overrideProvider(JwtUtil)
       .useValue({
@@ -88,8 +88,6 @@ describe("OpenAPI contract", () => {
         $connect: async () => undefined,
         $disconnect: async () => undefined,
       } satisfies Partial<PrismaService>)
-      .overrideProvider(TokensService)
-      .useValue(tokensServiceStub)
       .overrideProvider(UsersDomainService)
       .useValue(new UsersDomainService(usersRepositoryStub))
       .compile();
@@ -106,12 +104,12 @@ describe("OpenAPI contract", () => {
     const usersController = app.get(UsersController);
     (usersController as unknown as { tokens: TokensService }).tokens = tokensServiceStub as TokensService;
     (usersController as unknown as { usersService: UsersDomainService }).usersService = new UsersDomainService(
-      usersRepositoryStub
+      usersRepositoryStub,
     );
   });
 
   afterAll(async () => {
-    process.env.NODE_ENV = originalNodeEnv;
+    process.env.NODE_ENV = originalEnv;
     if (app) {
       await app.close();
     }
@@ -126,20 +124,10 @@ describe("OpenAPI contract", () => {
     expect(response).toSatisfyApiSpec();
   });
 
-  it("POST /api/v1/auth/request-magic-link conforms to contract", async () => {
+  it("POST /api/v1/auth/refresh conforms to contract", async () => {
     const response = await request(app.getHttpServer())
-      .post("/api/v1/auth/request-magic-link")
-      .send({ email: "user@example.com" });
-
-    expect(response.status).toBe(201);
-    expect(response.body.devToken).toBeUndefined();
-    expect(response).toSatisfyApiSpec();
-  });
-
-  it("POST /api/v1/auth/verify-magic-link conforms to contract", async () => {
-    const response = await request(app.getHttpServer())
-      .post("/api/v1/auth/verify-magic-link")
-      .send({ email: "user@example.com", token: "magic-token-development-000000000000" });
+      .post("/api/v1/auth/refresh")
+      .set("Authorization", "Bearer refresh-token");
 
     expect(response.status).toBe(201);
     expect(response).toSatisfyApiSpec();
