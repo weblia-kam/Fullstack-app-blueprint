@@ -1,0 +1,56 @@
+name: Build Verification
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pnpm-store
+            node_modules
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
+      - name: Build API
+        run: pnpm --filter ./apps/api build
+      - name: Build Web
+        run: pnpm --filter ./apps/web build
+      - name: Build Domain Packages
+        run: pnpm --filter ./packages/domain build
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+      - name: Install Flutter dependencies
+        run: flutter pub get
+        working-directory: apps/mobile
+      - name: Build Mobile
+        run: flutter build apk --release
+        working-directory: apps/mobile
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-artifacts
+          path: |
+            apps/api/dist
+            apps/web/.next
+            packages/domain/dist

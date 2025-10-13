@@ -12,6 +12,14 @@ jobs:
       - uses: pnpm/action-setup@v3
         with:
           version: 9
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pnpm-store
+            node_modules
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -33,6 +41,14 @@ jobs:
       - uses: pnpm/action-setup@v3
         with:
           version: 9
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pnpm-store
+            node_modules
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -53,6 +69,14 @@ jobs:
       - uses: pnpm/action-setup@v3
         with:
           version: 9
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pnpm-store
+            node_modules
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -78,6 +102,13 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
       - name: Flutter version
         run: flutter --version
       - name: Install Dart dependencies
