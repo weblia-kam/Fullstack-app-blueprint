@@ -8,6 +8,7 @@ import { ValidationPipe, type INestApplication } from "@nestjs/common";
 import { validateSecurityConfig } from "./config/security.config";
 import type { Request, Response, NextFunction } from "express";
 import { createCsrfMiddleware } from "./middleware/csrf.middleware";
+import { DomainErrorInterceptor } from "./common/interceptors/domain-error.interceptor";
 
 const defaultCorsOrigins = ["http://localhost:3000", "https://app.example.com"];
 
@@ -89,6 +90,9 @@ async function bootstrap() {
 
   // Input-validering (whitelist + transform)
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+
+  // Domenefeil → HTTP-svar
+  app.useGlobalInterceptors(new DomainErrorInterceptor());
 
   // OpenAPI emit-modus (brukes av sdk:all)
   if (process.env.EMIT_OPENAPI === "1") {

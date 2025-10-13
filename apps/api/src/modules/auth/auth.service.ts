@@ -4,8 +4,8 @@ import { randomBytes } from "crypto";
 import * as argon2 from "argon2";
 import { v4 as uuidv4 } from "uuid";
 import { MailerService } from "../mailer/mailer.service";
-import { JwtUtil } from "./jwt.util";
 import { ConfigService } from "@nestjs/config";
+import { TokensService } from "@org/domain";
 
 @Injectable()
 export class AuthService {
@@ -14,7 +14,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailer: MailerService,
-    private readonly jwt: JwtUtil,
+    private readonly tokens: TokensService,
     private readonly config: ConfigService
   ) {
     this.refreshTtlMs = Number(this.config.get("REFRESH_TOKEN_TTL_SEC") ?? 1209600) * 1000;
@@ -22,8 +22,8 @@ export class AuthService {
 
   private async issueForUser(userId: string) {
     const jti = uuidv4();
-    const refreshToken = this.jwt.signRefresh(userId, jti);
-    const accessToken = this.jwt.signAccess(userId);
+    const refreshToken = await this.tokens.issueRefreshToken(userId, jti);
+    const accessToken = await this.tokens.issueAccessToken(userId);
     const rtExp = new Date(Date.now() + this.refreshTtlMs);
     await this.prisma.session.create({ data: { userId, token: jti, expiresAt: rtExp } });
     return { accessToken, refreshToken };
@@ -64,22 +64,22 @@ export class AuthService {
   }
 
   async refresh(oldRefresh: string) {
-    const payload = this.jwt.verifyToken(oldRefresh); // kaster ved ugyldig/utløpt
-    if (!payload.sub || !payload.jti) throw new UnauthorizedException("Malformed token");
+    const payload = await this.tokens.verify(oldRefresh); // kaster ved ugyldig/utløpt
+    if (!payload.subject || !payload.tokenId) throw new UnauthorizedException("Malformed token");
 
     // Sørg for at JTI finnes og ikke er revokert/utløpt
-    const sess = await this.prisma.session.findUnique({ where: { token: payload.jti } });
+    const sess = await this.prisma.session.findUnique({ where: { token: payload.tokenId } });
     if (!sess || sess.revokedAt || sess.expiresAt < new Date()) {
       throw new UnauthorizedException("Session revoked/expired");
     }
 
     // Roter: revoker gammel, opprett ny JTI + tokens
-    await this.prisma.session.update({ where: { token: payload.jti }, data: { revokedAt: new Date() } });
+    await this.prisma.session.update({ where: { token: payload.tokenId }, data: { revokedAt: new Date() } });
     const newJti = uuidv4();
-    const refreshToken = this.jwt.signRefresh(payload.sub, newJti);
-    const accessToken = this.jwt.signAccess(payload.sub);
+    const refreshToken = await this.tokens.issueRefreshToken(payload.subject, newJti);
+    const accessToken = await this.tokens.issueAccessToken(payload.subject);
     const rtExp = new Date(Date.now() + this.refreshTtlMs);
-    await this.prisma.session.create({ data: { userId: payload.sub, token: newJti, expiresAt: rtExp } });
+    await this.prisma.session.create({ data: { userId: payload.subject, token: newJti, expiresAt: rtExp } });
 
     return { accessToken, refreshToken };
   }
@@ -87,8 +87,10 @@ export class AuthService {
   async logout(refreshOrCookie: string | null) {
     if (!refreshOrCookie) return;
     try {
-      const p = this.jwt.verifyToken(refreshOrCookie);
-      if (p.jti) await this.prisma.session.update({ where: { token: p.jti }, data: { revokedAt: new Date() } });
+      const p = await this.tokens.verify(refreshOrCookie);
+      if (p.tokenId) {
+        await this.prisma.session.update({ where: { token: p.tokenId }, data: { revokedAt: new Date() } });
+      }
     } catch { /* ignore */ }
   }
 
