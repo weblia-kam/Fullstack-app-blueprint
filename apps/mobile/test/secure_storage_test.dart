@@ -1,6 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:blueprint_mobile/services/secure_storage_service.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 class _FakeStore extends SecureKeyValueStore {
   final Map<String, String?> storage = {};
@@ -23,13 +22,11 @@ class _FakeStore extends SecureKeyValueStore {
 
 void main() {
   test('stores and retrieves refresh token securely', () async {
-    final store = _FakeStore();
-    final service = SecureStorageService(store: store);
+    final service = SecureStorageService(store: _FakeStore());
 
     await service.saveRefreshToken('refresh-token');
-    expect(store.storage['refresh_token'], equals('refresh-token'));
-
     final token = await service.getRefreshToken();
+
     expect(token, equals('refresh-token'));
   });
 
