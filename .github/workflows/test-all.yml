@@ -31,6 +31,8 @@ jobs:
       API_CORS_ORIGINS: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
+      - name: Sanity: ensure Prisma schema exists
+        run: test -f packages/db/prisma/schema.prisma
       - uses: pnpm/action-setup@v3
         with:
           version: 9
@@ -39,9 +41,14 @@ jobs:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter ./packages/db prisma generate || pnpm prisma generate
-      - run: npx prisma migrate deploy
-      - run: pnpm db:seed || echo "no seed"
+      - name: Prisma generate
+        run: npx prisma generate
+        working-directory: packages/db
+      - name: Prisma migrate
+        run: npx prisma migrate deploy
+        working-directory: packages/db
+      - name: Seed database
+        run: pnpm db:seed || echo "no seed"
       - run: pnpm --filter ./apps/api test
 
   contract:
@@ -68,6 +75,8 @@ jobs:
       API_CORS_ORIGINS: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
+      - name: Sanity: ensure Prisma schema exists
+        run: test -f packages/db/prisma/schema.prisma
       - uses: pnpm/action-setup@v3
         with:
           version: 9
@@ -76,9 +85,14 @@ jobs:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter ./packages/db prisma generate || pnpm prisma generate
-      - run: npx prisma migrate deploy
-      - run: pnpm db:seed || echo "no seed"
+      - name: Prisma generate
+        run: npx prisma generate
+        working-directory: packages/db
+      - name: Prisma migrate
+        run: npx prisma migrate deploy
+        working-directory: packages/db
+      - name: Seed database
+        run: pnpm db:seed || echo "no seed"
       - run: pnpm build:api
       - run: pnpm start:api:ci &
         shell: bash
@@ -111,6 +125,8 @@ jobs:
       API_BASE_PATH: /api/v1
     steps:
       - uses: actions/checkout@v4
+      - name: Sanity: ensure Prisma schema exists
+        run: test -f packages/db/prisma/schema.prisma
       - uses: pnpm/action-setup@v3
         with:
           version: 9
@@ -119,9 +135,14 @@ jobs:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter ./packages/db prisma generate || pnpm prisma generate
-      - run: npx prisma migrate deploy
-      - run: pnpm db:seed || echo "no seed"
+      - name: Prisma generate
+        run: npx prisma generate
+        working-directory: packages/db
+      - name: Prisma migrate
+        run: npx prisma migrate deploy
+        working-directory: packages/db
+      - name: Seed database
+        run: pnpm db:seed || echo "no seed"
       - run: pnpm build:api
       - run: pnpm start:api:ci &
         shell: bash
