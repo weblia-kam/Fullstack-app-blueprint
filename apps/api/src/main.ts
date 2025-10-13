@@ -9,6 +9,14 @@ import { validateSecurityConfig } from "./config/security.config";
 import type { Request, Response, NextFunction } from "express";
 import { createCsrfMiddleware } from "./middleware/csrf.middleware";
 import { DomainErrorInterceptor } from "./common/interceptors/domain-error.interceptor";
+import { SensitiveLoggingInterceptor } from "./common/interceptors/sensitive-logging.interceptor";
+import { HTTP_LOGGER_TOKEN, LOGGER_TOKEN } from "./common/logging/logger.module";
+import { MetricsMiddleware } from "./common/metrics/metrics.middleware";
+import { MetricsGuard } from "./common/metrics/metrics.guard";
+import { trace } from "@opentelemetry/api";
+import { randomUUID } from "node:crypto";
+import type { Logger } from "pino";
+import { startOtel, shutdownOtel } from "../otel";
 
 const defaultCorsOrigins = ["http://localhost:3000", "https://app.example.com"];
 
@@ -78,7 +86,46 @@ async function emitOpenApiDocument(app: INestApplication) {
 async function bootstrap() {
   validateSecurityConfig();
 
+  await startOtel();
+
   const app = await NestFactory.create(AppModule);
+  const logger = app.get<Logger>(LOGGER_TOKEN);
+  const httpLogger = app.get<(req: Request, res: Response, next: NextFunction) => void>(HTTP_LOGGER_TOKEN);
+  const metricsMiddleware = app.get(MetricsMiddleware);
+  const metricsGuard = app.get(MetricsGuard);
+
+  if (httpLogger) {
+    app.use(httpLogger);
+  }
+
+  app.use((req: Request & { id?: string }, res: Response, next: NextFunction) => {
+    const header = req.headers["x-request-id"];
+    let requestId = Array.isArray(header) ? header[0] : header;
+    if (!requestId) {
+      requestId = randomUUID();
+      req.headers["x-request-id"] = requestId;
+    }
+    if (!req.id) {
+      req.id = requestId;
+    }
+    if (typeof res.setHeader === "function") {
+      res.setHeader("x-request-id", requestId);
+    }
+    const span = trace.getActiveSpan();
+    if (span) {
+      span.setAttribute("request_id", requestId);
+    }
+    next();
+  });
+
+  if (metricsMiddleware) {
+    app.use((req: Request, res: Response, next: NextFunction) => metricsMiddleware.use(req, res, next));
+  }
+
+  if (metricsGuard) {
+    app.useGlobalGuards(metricsGuard);
+  }
+
   app.setGlobalPrefix(API_PREFIX, { exclude: [] });
 
   app.use("/api", (req: Request, res: Response, next: NextFunction) => {
@@ -90,7 +137,6 @@ async function bootstrap() {
 
   configureCors(app);
 
-  // HTTP security headers (CSP håndteres av web)
   app.use(
     helmet({
       contentSecurityPolicy: false,
@@ -101,24 +147,19 @@ async function bootstrap() {
   );
   app.use(helmet.noSniff());
 
-  // Cookies (HttpOnly på svar)
   app.use(cookieParser(process.env.COOKIE_SECRET));
 
-  // CSRF (må ligge etter cookie-parser)
   app.use(createCsrfMiddleware());
 
-  // Rate limiting (streng på /auth/*, moderat globalt)
   app.use(
     `/${API_PREFIX}/auth`,
     rateLimit({ windowMs: 10 * 60 * 1000, limit: 100, standardHeaders: true, legacyHeaders: false })
   );
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 1000, standardHeaders: true, legacyHeaders: false }));
 
-  // Input-validering (whitelist + transform)
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
 
-  // Domenefeil → HTTP-svar
-  app.useGlobalInterceptors(new DomainErrorInterceptor());
+  app.useGlobalInterceptors(new SensitiveLoggingInterceptor(), new DomainErrorInterceptor());
 
   const shouldEmitOpenApi = process.env.NODE_ENV !== "production" || process.env.EMIT_OPENAPI === "1";
   if (shouldEmitOpenApi) {
@@ -128,8 +169,35 @@ async function bootstrap() {
     }
   }
 
-  await app.listen(process.env.PORT ?? 4000);
-  // eslint-disable-next-line no-console
-  console.log(`API at http://localhost:${process.env.PORT ?? 4000}`);
+  const port = Number(process.env.PORT ?? 4000);
+  await app.listen(port);
+
+  logger?.info(
+    {
+      event: "api_started",
+      port,
+      environment: process.env.NODE_ENV ?? "development",
+      logLevel: process.env.LOG_LEVEL ?? "info",
+      metricsAllowlistConfigured: Boolean(process.env.METRICS_ALLOWLIST),
+      metricsBasicAuthEnabled: Boolean(process.env.METRICS_USER && process.env.METRICS_PASS),
+      otelExporterEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || "http://localhost:4318/v1/traces"
+    },
+    "API bootstrap complete"
+  );
+
+  const gracefulShutdown = async () => {
+    logger?.info("Shutting down API");
+    await app.close();
+    await shutdownOtel();
+  };
+
+  process.once("SIGTERM", gracefulShutdown);
+  process.once("SIGINT", gracefulShutdown);
 }
-bootstrap();
+
+bootstrap().catch(async (error) => {
+  // eslint-disable-next-line no-console
+  console.error("Failed to bootstrap API", error);
+  await shutdownOtel().catch(() => undefined);
+  process.exit(1);
+});
