@@ -1,47 +1,23 @@
 # Fullstack App Blueprint
-Secure monorepo blueprint for web (Next.js), mobile (Flutter), and API (NestJS) with OpenAPI contracts and SDKs for TS & Dart.
 
-## Quickstart
-1) docker compose -f infra/docker-compose.yml up -d
-2) pnpm i
-3) pnpm sdk:all
-4) pnpm dev
-(Flutter: cd apps/mobile && flutter run)
+## Overview
+- Stack: NestJS API, Next.js web, Flutter mobile, Prisma ORM, Turborepo monorepo.
+- Contracts: OpenAPI under `packages/contracts`.
+- Infra: Docker Compose for local + prod simulation, GitHub Actions CI/CD.
 
-### Required environment
-- Copy `env.example` to `.env` in the project root.
-- Set a **strong** `JWT_SECRET` value before starting the API. The server will fail fast if it is missing.
-- `API_CORS_ORIGINS` must contain every web origin that should be able to call the API (comma separated).
-- `CSRF_COOKIE_NAME` defines the non-HttpOnly cookie that the API exposes to browsers for CSRF protection (defaults to `XSRF-TOKEN`).
+## Quickstart (development)
+- Follow [docs/OPERATIONS.md](docs/OPERATIONS.md#local-development) for environment, migrations, seeding, and app startup.
 
-## CI Quickstart (no terminal)
-Open **Actions → Stack Init (OpenAPI + SDKs) → Run workflow**.  
-This will:
-- install dependencies & run Prisma generate  
-- emit OpenAPI & sync contracts  
-- generate TS & Dart SDKs  
-- upload artifacts you can download from the job
+## Quickstart (prod simulation)
+- Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#prod-simulation) to run the Traefik + services stack locally.
 
-## Health & Tests
-- API health: `GET /health`
-- Web health: `/api/health`
-- Run **Actions → Test All (E2E) → Run workflow** to verify the auth flow end-to-end.
-
-## Dev login
-- Open **MailHog** at `http://localhost:8025`
-- Use `/login` to request a magic link → click the link in MailHog → you’re redirected to `/profile`.
-
-## Authentication
-- Primary: **Email/Password** (`POST /auth/login`, `POST /auth/register`)
-- Alternative: **Email magic link** (`POST /auth/request-magic-link` → `POST /auth/verify-magic-link`)
-Both issue the same JWT access/refresh tokens with rotation and JTI blacklist.
-
-## Registration (Web)
-Route: `/register`
-Fields: firstName, lastName, email, phone, birthDate, password, acceptedTerms
-→ calls `POST /auth/register`, redirects to `/profile`
-
-## Registration (Mobile)
-Screen: `RegisterScreen` → calls `/auth/register`  
-Fields: firstName, lastName, email, phone, birthDate, password, acceptedTerms  
-Redirects to profile after success.
+## Operational References
+- [docs/SECURITY.md](docs/SECURITY.md)
+- [docs/OPERATIONS.md](docs/OPERATIONS.md)
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md)
+- [docs/TESTING.md](docs/TESTING.md)
+- [docs/API_VERSIONING.md](docs/API_VERSIONING.md)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/RUNBOOKS](docs/RUNBOOKS)
+- [docs/ADRS](docs/ADRS)

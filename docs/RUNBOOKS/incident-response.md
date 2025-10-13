@@ -1,33 +1,26 @@
-# Incident Response Runbook
+# Runbook: Incident Response
 
-Use this checklist when investigating production incidents for the Blueprint API.
+## Triage
+1. Page on-call and establish incident channel.
+2. Gather context: alerts, dashboards, recent deploys.
+3. Assign incident commander and scribe.
 
-## 1. Capture context
-- Record the time of the incident, impact, and affected endpoints/users.
-- Determine the `x-request-id` if the issue was triggered by a specific call (grab from client logs, API response headers, or load balancer traces).
+## Containment
+1. If auth breach, disable login endpoints via feature flag.
+2. Rotate secrets as per [rotate-secrets.md](rotate-secrets.md).
+3. Invalidate refresh tokens and enforce logout.
 
-## 2. Collect logs
-- Retrieve Pino logs from the logging platform (or application host) for the relevant time window.
-- Filter by `requestId=<value>` to scope to the failing request.
-- Confirm that sensitive details remain redacted; escalate if raw secrets are observed.
+## Investigation
+1. Inspect logs filtered by `x-request-id` and error codes.
+2. Review traces for failing spans.
+3. Check DB integrity (`pnpm prisma migrate status`, `select count(*) from critical tables`).
 
-## 3. Check metrics
-- Query Prometheus for HTTP status spikes:
-  - `sum(rate(http_requests_total{status=~"5.."}[5m]))` for errors.
-  - `histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))` for latency.
-- Review Node.js process metrics (memory, event loop lag) to identify resource exhaustion.
+## Recovery
+1. Apply fix or rollback deployment (see [rollback-migration.md](rollback-migration.md)).
+2. Redeploy and monitor metrics until stable.
+3. Communicate resolution to stakeholders.
 
-## 4. Inspect traces
-- Search the tracing UI for the captured `request_id` attribute.
-- Validate span timing (database calls, downstream services) and note any long or failed spans.
-- Ensure OTLP exporter is connected (collector logs should show received spans).
-
-## 5. Correlate and mitigate
-- Use the intersection of logs, metrics, and traces to identify the failing component.
-- Roll back recent deployments or disable problematic features if needed.
-- Communicate with stakeholders and update the incident channel.
-
-## 6. Post-incident
-- File a detailed incident report including timeline, root cause, and action items.
-- Add detection/alerting improvements based on the gaps observed.
-- Schedule follow-up tasks in the backlog.
+## Post-Incident
+1. Capture timeline, root cause, and action items.
+2. Create follow-up tickets with owners and due dates.
+3. Schedule postmortem review.
