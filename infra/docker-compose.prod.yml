@@ -1,0 +1,95 @@
+version: "3.9"
+services:
+  api:
+    build:
+      context: ../
+      dockerfile: apps/api/Dockerfile
+    image: blueprint-api:prod
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.blueprint-api.rule: "PathPrefix(`/api`)"
+      traefik.http.routers.blueprint-api.priority: "10"
+      traefik.http.routers.blueprint-api.entrypoints: web,websecure
+      traefik.http.routers.blueprint-api.middlewares: blueprint-api-strip
+      traefik.http.services.blueprint-api.loadbalancer.server.port: "3000"
+      traefik.http.middlewares.blueprint-api-strip.stripprefix.prefixes: /api
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=256
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      API_CORS_ORIGINS: ${API_CORS_ORIGINS}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 2s
+      retries: 6
+    cap_drop:
+      - ALL
+
+  web:
+    build:
+      context: ../
+      dockerfile: apps/web/Dockerfile
+    image: blueprint-web:prod
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.blueprint-web.rule: "PathPrefix(`/`)"
+      traefik.http.routers.blueprint-web.entrypoints: web,websecure
+      traefik.http.services.blueprint-web.loadbalancer.server.port: "3000"
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=256
+      PORT: 3001
+      API_BASE_PATH: /api/v1
+      API_ORIGIN: http://api:3000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 2s
+      retries: 6
+    cap_drop:
+      - ALL
+
+  proxy:
+    image: traefik:v3.1
+    command:
+      - "--api.dashboard=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      web:
+        condition: service_started
+      api:
+        condition: service_healthy
