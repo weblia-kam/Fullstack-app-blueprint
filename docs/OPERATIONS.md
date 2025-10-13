@@ -1,45 +1,34 @@
-# Operations Runbook
+# Operations
 
-## Database Backup and Rollback Strategy
+## Local Development
+1. Copy `env.example` → `.env` and set required secrets.
+2. Start base services: `docker compose -f infra/docker-compose.yml up -d`.
+3. Install deps: `pnpm install`.
+4. Generate Prisma client: `pnpm prisma:generate`.
+5. Run migrations: `pnpm prisma migrate deploy`.
+6. Seed dev data (optional): `pnpm prisma db seed`.
+7. Start apps: `pnpm dev` (web/api) and `cd apps/mobile && flutter run` for mobile.
 
-To maintain data integrity across development, staging, and production, follow these steps for every deployment and potential rollback scenario.
+## CI/CD Hooks
+- `pnpm prisma migrate deploy` runs in CI before application tests.
+- Seed script runs only in dev and dedicated CI jobs tagged `Seed`.
 
-### 1. Pre-deploy Backups
+## Database Rollback
+1. Capture backup: `pg_dump $DATABASE_URL > backup.sql` (or restore latest managed backup).
+2. Run `pnpm prisma migrate resolve --rolled-back "<migration_id>"` to mark migration as rolled back.
+3. Deploy rollback artifact via pipeline.
+4. Verify schema via `pnpm prisma migrate status` before reopening traffic.
 
-Always create a compressed backup of the database before applying new migrations:
+## Secret Rotation
+1. Generate new values for all secrets stored in platform secret manager.
+2. Update `.env` (local) or secrets store (CI/CD, runtime).
+3. Redeploy API/web containers to pick up new values.
+4. Validate by signing in and confirming cookies/tokens reissued.
+5. Record rotation in [docs/RUNBOOKS/rotate-secrets.md](RUNBOOKS/rotate-secrets.md).
 
-```bash
-pg_dump -Fc -f backup_$(date +%Y%m%d%H%M%S).dump
-```
-
-Store backups in a secure, access-controlled location that aligns with your organization's retention policies.
-
-### 2. Rolling Back a Migration
-
-If a migration introduces issues, mark it as applied or rolled back using Prisma's migration resolution commands. Replace the migration name with the identifier of the migration you need to adjust.
-
-```bash
-npx prisma migrate resolve --applied "20231012123000_init_audit_fields"
-```
-
-To explicitly mark a migration as reverted, use the `--rolled-back` flag instead:
-
-```bash
-npx prisma migrate resolve --rolled-back "20231012123000_init_audit_fields"
-```
-
-After resolving the migration status, synchronize the database state with your schema history:
-
-```bash
-npx prisma migrate deploy
-```
-
-### 3. Restoring Data from Backup
-
-If the migration has corrupted or removed data, restore from the backup created earlier. Be sure to target the correct database.
-
-```bash
-pg_restore -d <dbname> backup_<timestamp>.dump
-```
-
-Verify data integrity post-restore and re-run the application test suite before resuming normal operations.
+## Production Incident First Aid
+1. Check Prometheus `/metrics` via Traefik secure endpoint.
+2. Inspect centralized logs (Pino JSON) for spikes in error level.
+3. Review traces in OTLP backend for failing spans.
+4. Test database connectivity: `psql $DATABASE_URL -c 'select 1'`.
+5. If degraded, follow [docs/RUNBOOKS/incident-response.md](RUNBOOKS/incident-response.md).
