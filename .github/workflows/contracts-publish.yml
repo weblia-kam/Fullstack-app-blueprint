@@ -1,0 +1,28 @@
+name: Publish Contracts SDK
+
+on:
+  push:
+    paths:
+      - 'packages/contracts/openapi.v1.json'
+      - 'packages/contracts/scripts/**'
+      - 'packages/contracts/package.json'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with: { version: 9 }
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://registry.npmjs.org'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter ./packages/contracts run build
+      - run: pnpm --filter ./packages/contracts run version:bump
+      - name: Publish
+        run: pnpm --filter ./packages/contracts publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

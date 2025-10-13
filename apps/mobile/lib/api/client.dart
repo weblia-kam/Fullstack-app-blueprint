@@ -32,7 +32,7 @@ class ApiClient {
   }
 
   ApiClient._internal({Dio? dio, SecureStorageService? secureStorage})
-      : _dio = dio ?? Dio(BaseOptions(baseUrl: _defaultBaseUrl)),
+      : _dio = dio ?? Dio(BaseOptions(baseUrl: _resolveBaseUrl())),
         _secureStorage = secureStorage ?? SecureStorageService() {
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
@@ -59,9 +59,13 @@ class ApiClient {
     ));
   }
 
-  static const String _defaultBaseUrl = String.fromEnvironment(
+  static const String _defaultApiOrigin = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'https://api.example.com',
+  );
+  static const String _defaultApiBasePath = String.fromEnvironment(
+    'API_BASE_PATH',
+    defaultValue: '/api/v1',
   );
   static const String _refreshEndpoint = String.fromEnvironment(
     'TOKEN_REFRESH_ENDPOINT',
@@ -294,3 +298,13 @@ class ApiClient {
     }
   }
 }
+  static String _resolveBaseUrl() {
+    final origin = _defaultApiOrigin.endsWith('/')
+        ? _defaultApiOrigin.substring(0, _defaultApiOrigin.length - 1)
+        : _defaultApiOrigin;
+    final path = _defaultApiBasePath.startsWith('/')
+        ? _defaultApiBasePath
+        : '/$_defaultApiBasePath';
+    final normalizedPath = path.endsWith('/') ? path.substring(0, path.length - 1) : path;
+    return '$origin$normalizedPath';
+  }

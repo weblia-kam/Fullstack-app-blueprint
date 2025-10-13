@@ -1,0 +1,285 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Blueprint API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/api/v1" }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "summary": "Health check",
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "Health status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "service": { "type": "string" },
+                    "version": { "type": "string" }
+                  },
+                  "required": ["ok", "service", "version"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/request-magic-link": {
+      "post": {
+        "summary": "Request a magic login link",
+        "operationId": "requestMagicLink",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "format": "email" }
+                },
+                "required": ["email"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Magic link dispatched",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MagicLinkResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/verify-magic-link": {
+      "post": {
+        "summary": "Verify a magic login link",
+        "operationId": "verifyMagicLink",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "token": { "type": "string", "minLength": 32 }
+                },
+                "required": ["email", "token"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tokens issued",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TokenPairResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "summary": "Refresh access token",
+        "operationId": "refreshTokens",
+        "security": [
+          { "cookieAuth": [] },
+          { "bearerAuth": [] }
+        ],
+        "responses": {
+          "201": {
+            "description": "Tokens rotated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TokenPairResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing refresh token"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "summary": "Logout current session",
+        "operationId": "logout",
+        "responses": {
+          "204": {
+            "description": "Logged out"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "summary": "Register a new user",
+        "operationId": "register",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "firstName": { "type": "string", "minLength": 1, "maxLength": 64 },
+                  "lastName": { "type": "string", "minLength": 1, "maxLength": 64 },
+                  "email": { "type": "string", "format": "email" },
+                  "phone": { "type": "string", "nullable": true },
+                  "birthDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "nullable": true },
+                  "password": { "type": "string", "minLength": 8, "maxLength": 128 },
+                  "acceptedTerms": { "type": "boolean" }
+                },
+                "required": ["firstName", "lastName", "email", "password", "acceptedTerms"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TokenPairResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Login with credentials",
+        "operationId": "login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "identifier": { "type": "string", "minLength": 3 },
+                  "password": { "type": "string", "minLength": 8 }
+                },
+                "required": ["identifier", "password"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User authenticated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TokenPairResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "summary": "Get current user profile",
+        "operationId": "getMe",
+        "security": [
+          { "cookieAuth": [] },
+          { "bearerAuth": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MeResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MagicLinkResponse": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean" }
+        },
+        "required": ["ok"],
+        "additionalProperties": false
+      },
+      "TokenPairResponse": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean" },
+          "accessToken": { "type": "string" },
+          "refreshToken": { "type": "string" }
+        },
+        "required": ["ok", "accessToken", "refreshToken"],
+        "additionalProperties": false
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "phone": { "type": "string", "nullable": true },
+          "firstName": { "type": "string", "nullable": true },
+          "lastName": { "type": "string", "nullable": true },
+          "birthDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "nullable": true },
+          "displayName": { "type": "string", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "role": { "type": "string" }
+        },
+        "required": ["id", "email", "phone", "firstName", "lastName", "birthDate", "displayName", "createdAt", "role"],
+        "additionalProperties": false
+      },
+      "MeResponse": {
+        "type": "object",
+        "properties": {
+          "user": { "$ref": "#/components/schemas/UserProfile" }
+        },
+        "required": ["user"],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sid"
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

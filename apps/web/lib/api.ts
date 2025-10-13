@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const API_BASE_PATH = process.env.NEXT_PUBLIC_API_BASE_PATH ?? "/api/v1";
 const CSRF_COOKIE_NAME = process.env.NEXT_PUBLIC_CSRF_COOKIE_NAME ?? "XSRF-TOKEN";
 const STATEFUL_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -8,10 +9,12 @@ function ensureAbsoluteUrl(path: string): string {
   if (/^https?:/i.test(path)) {
     return path;
   }
-  if (!path.startsWith("/")) {
-    return `${API_BASE_URL}/${path}`;
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (normalized.startsWith(API_BASE_PATH)) {
+    return `${API_ORIGIN}${normalized}`;
   }
-  return `${API_BASE_URL}${path}`;
+  const joined = `${API_BASE_PATH}${normalized}`.replace(/\/{2,}/g, "/");
+  return `${API_ORIGIN}${joined}`;
 }
 
 export function parseCookieValue(cookieHeader: string | null | undefined, name: string): string | null {
@@ -70,7 +73,8 @@ export function getCsrfTokenFromCookieHeader(cookieHeader: string | null | undef
 }
 
 export function getApiBaseUrl(): string {
-  return API_BASE_URL;
+  const normalizedBase = API_BASE_PATH.endsWith("/") ? API_BASE_PATH.slice(0, -1) : API_BASE_PATH;
+  return `${API_ORIGIN}${normalizedBase}`;
 }
 
 export type CsrfHook = {

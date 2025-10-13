@@ -1,0 +1,43 @@
+{
+  "name": "@org/contracts",
+  "version": "1.0.1",
+  "description": "Blueprint API contract artifacts and generated SDK",
+  "type": "module",
+  "main": "./dist/sdk/index.js",
+  "types": "./dist/sdk/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/sdk/index.d.ts",
+      "default": "./dist/sdk/index.js"
+    },
+    "./sdk": {
+      "types": "./dist/sdk/index.d.ts",
+      "default": "./dist/sdk/index.js"
+    },
+    "./types": "./dist/types.d.ts",
+    "./openapi": "./dist/openapi.v1.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "prebuild": "rimraf dist && mkdir -p dist",
+    "build": "node ./scripts/validate-openapi.mjs && cp ./openapi.v1.json ./dist/openapi.v1.json",
+    "version:bump": "node ./scripts/semver-bump.mjs"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.12.2"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^6.7.0",
+    "rimraf": "^5.0.10"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "contractHash": "9634d84492c03278e28cf955aa160488cc5a893473be828c1ce1a465e28bc02e",
+  "license": "MIT"
+}

@@ -1,5 +1,8 @@
 /* Minimal E2E: magic-link → verify → /me → refresh → logout */
-const base = process.env.API_URL || "http://localhost:4000";
+const origin = process.env.API_URL || "http://localhost:4000";
+const basePath = process.env.API_BASE_PATH || "/api/v1";
+const normalizedBasePath = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
+const base = `${origin}${normalizedBasePath}`;
 const email = "test@example.com";
 const uname = "user" + Math.random().toString(16).slice(2, 7);
 const pw = "S3curePassw0rd!";
