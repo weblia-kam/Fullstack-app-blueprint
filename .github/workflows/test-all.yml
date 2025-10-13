@@ -31,14 +31,14 @@ jobs:
       API_CORS_ORIGINS: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
-      - name: Sanity: ensure Prisma schema exists
+      - name: "Sanity: ensure Prisma schema exists"
         run: test -f packages/db/prisma/schema.prisma
       - uses: pnpm/action-setup@v3
         with:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 'lts/*'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Prisma generate
@@ -75,14 +75,14 @@ jobs:
       API_CORS_ORIGINS: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
-      - name: Sanity: ensure Prisma schema exists
+      - name: "Sanity: ensure Prisma schema exists"
         run: test -f packages/db/prisma/schema.prisma
       - uses: pnpm/action-setup@v3
         with:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 'lts/*'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Prisma generate
@@ -125,14 +125,14 @@ jobs:
       API_BASE_PATH: /api/v1
     steps:
       - uses: actions/checkout@v4
-      - name: Sanity: ensure Prisma schema exists
+      - name: "Sanity: ensure Prisma schema exists"
         run: test -f packages/db/prisma/schema.prisma
       - uses: pnpm/action-setup@v3
         with:
           version: 9
       - uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 'lts/*'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Prisma generate
