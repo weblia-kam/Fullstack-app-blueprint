@@ -6,7 +6,7 @@
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api dev",
     "build": "turbo run build",
-    "lint": "turbo run lint",
+    "lint": "eslint . --ext .ts,.tsx",
     "test": "turbo run test",
     "test:unit": "pnpm --filter ./apps/api test",
     "test:contract": "pnpm --filter ./apps/api test:contract",
