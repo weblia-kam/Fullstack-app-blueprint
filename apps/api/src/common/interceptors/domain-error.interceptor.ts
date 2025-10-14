@@ -14,16 +14,18 @@ import { DomainError } from "@org/domain";
 export class DomainErrorInterceptor implements NestInterceptor {
   intercept(_context: ExecutionContext, next: CallHandler): Observable<unknown> {
     return next.handle().pipe(
-      catchError((error: unknown) => {
-        if (error instanceof DomainError) {
-          const status = this.mapStatus(error.code);
+      catchError((err: unknown) => {
+        if (err instanceof DomainError) {
+          const status = this.mapStatus(err.code);
           const responseBody = {
-            error: error.code,
-            message: error.message,
-            ...(error.meta ? { details: this.sanitizeMeta(error.meta) } : {}),
+            error: err.code,
+            message: err.message,
+            ...(err.meta ? { details: this.sanitizeMeta(err.meta) } : {}),
           };
           return throwError(() => new HttpException(responseBody, status));
         }
+
+        const error = err instanceof Error ? err : new Error("Unknown error");
         return throwError(() => error);
       }),
     );

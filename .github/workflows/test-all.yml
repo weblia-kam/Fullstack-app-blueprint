@@ -93,6 +93,7 @@ jobs:
         working-directory: packages/db
       - name: Seed database
         run: pnpm db:seed || echo "no seed"
+      - run: pnpm --filter @org/domain build
       - run: pnpm build:api
       - run: pnpm start:api:ci &
         shell: bash
@@ -143,6 +144,7 @@ jobs:
         working-directory: packages/db
       - name: Seed database
         run: pnpm db:seed || echo "no seed"
+      - run: pnpm --filter @org/domain build
       - run: pnpm build:api
       - run: pnpm start:api:ci &
         shell: bash

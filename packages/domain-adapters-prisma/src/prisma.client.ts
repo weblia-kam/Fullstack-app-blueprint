@@ -8,7 +8,7 @@ function parseLogLevels(): PrismaLogLevel[] | undefined {
   const raw = process.env.PRISMA_LOG_LEVEL ?? "";
   const levels = raw
     .split(",")
-    .map(level => level.trim())
+    .map((level: string) => level.trim())
     .filter(Boolean) as PrismaLogLevel[];
   return levels.length > 0 ? levels : undefined;
 }

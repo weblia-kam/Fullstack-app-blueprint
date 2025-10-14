@@ -1,6 +1,10 @@
-import type { User as PrismaUser } from "@prisma/client";
 import type { User, UsersRepository } from "@org/domain";
-import { getPrisma } from "../prisma.client.js";
+import { getPrisma } from "../prisma.client";
+
+type PrismaClientInstance = ReturnType<typeof getPrisma>;
+type PrismaUser = NonNullable<
+  Awaited<ReturnType<PrismaClientInstance["user"]["findUnique"]>>
+>;
 
 function toDomain(user: PrismaUser): User {
   const displayName = user.displayName ?? `${user.firstName} ${user.lastName}`.trim();

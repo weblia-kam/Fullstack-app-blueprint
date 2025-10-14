@@ -5,6 +5,7 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import { ValidationPipe, type INestApplication } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { validateSecurityConfig } from "./config/security.config";
 import type { Request, Response, NextFunction } from "express";
 import { createCsrfMiddleware } from "./middleware/csrf.middleware";
@@ -89,6 +90,7 @@ async function bootstrap() {
   await startOtel();
 
   const app = await NestFactory.create(AppModule);
+  const config = app.get(ConfigService);
   const logger = app.get<Logger>(LOGGER_TOKEN);
   const httpLogger = app.get<(req: Request, res: Response, next: NextFunction) => void>(HTTP_LOGGER_TOKEN);
   const metricsMiddleware = app.get(MetricsMiddleware);
@@ -147,9 +149,9 @@ async function bootstrap() {
   );
   app.use(helmet.noSniff());
 
-  app.use(cookieParser(process.env.COOKIE_SECRET));
+  app.use(cookieParser(config.getOrThrow<string>("COOKIE_SECRET")));
 
-  app.use(createCsrfMiddleware());
+  app.use(createCsrfMiddleware(config));
 
   app.use(
     `/${API_PREFIX}/auth`,
