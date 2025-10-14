@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import csurf from "csurf";
+import { ConfigService } from "@nestjs/config";
 
 const MOBILE_PATH_REGEX = /^\/api\/v1\/mobile\//;
 
@@ -22,22 +23,23 @@ function getCsrfToken(req: Request & { csrfToken?: () => string }): string | und
   }
 }
 
-const csrfProtection: RequestHandler = csurf({
-  cookie: {
-    key: "csrf-secret",
-    httpOnly: true,
-    sameSite: "strict",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    domain: process.env.COOKIE_DOMAIN || undefined
-  },
-  value(req) {
-    return (req.headers["x-csrf-token"] as string | undefined) ?? undefined;
-  }
-});
-
-export function createCsrfMiddleware(): RequestHandler {
-  const csrfCookieName = process.env.CSRF_COOKIE_NAME || "XSRF-TOKEN";
+export function createCsrfMiddleware(config: ConfigService): RequestHandler {
+  const isProd = config.get<string>("NODE_ENV") === "production";
+  const cookieDomain = config.get<string>("COOKIE_DOMAIN") ?? undefined;
+  const csrfCookieName = config.get<string>("CSRF_COOKIE_NAME") ?? "XSRF-TOKEN";
+  const csrfProtection = csurf({
+    cookie: {
+      key: "csrf-secret",
+      httpOnly: true,
+      sameSite: "strict",
+      secure: isProd,
+      path: "/",
+      domain: cookieDomain
+    },
+    value(req) {
+      return (req.headers["x-csrf-token"] as string | undefined) ?? "";
+    }
+  }) as unknown as RequestHandler;
 
   return (req: Request, res: Response, next: NextFunction) => {
     if (shouldBypassCsrf(req)) {
@@ -58,9 +60,9 @@ export function createCsrfMiddleware(): RequestHandler {
           res.cookie(csrfCookieName, token, {
             httpOnly: false,
             sameSite: "strict",
-            secure: process.env.NODE_ENV === "production",
+            secure: isProd,
             path: "/",
-            domain: process.env.COOKIE_DOMAIN || undefined
+            domain: cookieDomain
           });
         }
       }

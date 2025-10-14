@@ -1,6 +1,6 @@
-import { DomainError } from "../common/domain-error.js";
-import type { User } from "./users.entity.js";
-import type { UsersRepository } from "./users.repository.js";
+import { DomainError } from "../common/domain-error";
+import type { User } from "./users.entity";
+import type { UsersRepository } from "./users.repository";
 
 export type RegisterUserInput = {
   email: string;
