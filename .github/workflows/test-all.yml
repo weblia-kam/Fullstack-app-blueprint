@@ -97,7 +97,8 @@ jobs:
       - run: pnpm build:api
       - run: pnpm start:api:ci &
         shell: bash
-      - run: npx wait-on http://localhost:3000/health || npx wait-on http://localhost:3000
+      - run: npx wait-on http://localhost:3000/health || npx wait-on http://localhost:3000 --timeout 120000
+      - run: echo "✅ API responded on expected port"
       - run: pnpm --filter ./apps/api test:contract
 
   e2e-web:
@@ -148,11 +149,13 @@ jobs:
       - run: pnpm build:api
       - run: pnpm start:api:ci &
         shell: bash
-      - run: npx wait-on http://localhost:3000/health || npx wait-on http://localhost:3000
+      - run: npx wait-on http://localhost:3000/health || npx wait-on http://localhost:3000 --timeout 120000
+      - run: echo "✅ API responded on expected port"
       - run: pnpm build:web
       - run: pnpm --filter ./apps/web start -- --port 3001 &
         shell: bash
-      - run: npx wait-on http://localhost:3001
+      - run: npx wait-on http://localhost:3001 --timeout 120000
+      - run: echo "✅ API responded on expected port"
       - run: npx playwright install --with-deps
       - run: pnpm --filter ./apps/web test:e2e
 
