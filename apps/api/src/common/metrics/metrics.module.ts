@@ -3,9 +3,7 @@ import { PrometheusModule, makeCounterProvider, makeHistogramProvider } from "@w
 import type { DefaultMetricsCollectorConfiguration, RegistryContentType } from "prom-client";
 import { MetricsMiddleware } from "./metrics.middleware";
 import { MetricsGuard } from "./metrics.guard";
-
-export const HTTP_REQUEST_COUNTER = "http_requests_total";
-export const HTTP_REQUEST_DURATION = "http_request_duration_seconds";
+import { HTTP_REQUEST_COUNTER, HTTP_REQUEST_DURATION } from "./metrics.constants";
 
 @Global()
 @Module({

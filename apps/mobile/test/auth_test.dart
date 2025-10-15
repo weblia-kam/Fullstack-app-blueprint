@@ -26,10 +26,10 @@ class _FakeStore extends SecureKeyValueStore {
   }
 }
 
-class _FakeAdapter extends HttpClientAdapter {
-  _FakeAdapter(this._handler);
+class _FakeAdapter implements HttpClientAdapter {
+  _FakeAdapter([this._handler]);
 
-  final Future<ResponseBody> Function(RequestOptions options) _handler;
+  final ResponseBody Function(RequestOptions options)? _handler;
 
   @override
   void close({bool force = false}) {}
@@ -39,8 +39,14 @@ class _FakeAdapter extends HttpClientAdapter {
     RequestOptions options,
     Stream<List<int>>? requestStream,
     Future<void>? cancelFuture,
-  ) {
-    return _handler(options);
+  ) async {
+    if (_handler != null) {
+      return _handler!(options);
+    }
+
+    return ResponseBody.fromString('ok', 200, headers: {
+      Headers.contentTypeHeader: [Headers.jsonContentType],
+    });
   }
 }
 
@@ -61,7 +67,7 @@ void main() {
     final store = _FakeStore();
     final secureStorage = SecureStorageService(store: store);
     final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
+      ..httpClientAdapter = _FakeAdapter((options) {
         if (options.path.endsWith('/auth/login')) {
           return _jsonResponse({
             'accessToken': 'access-1',
@@ -102,7 +108,7 @@ void main() {
     var protectedCalls = 0;
 
     final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
+      ..httpClientAdapter = _FakeAdapter((options) {
         if (options.path.endsWith('/auth/login')) {
           return _jsonResponse({'accessToken': 'access-1', 'refreshToken': 'refresh-1'}, 200);
         }
@@ -139,7 +145,7 @@ void main() {
     var authExpiredNotified = false;
 
     final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
-      ..httpClientAdapter = _FakeAdapter((options) async {
+      ..httpClientAdapter = _FakeAdapter((options) {
         if (options.path.endsWith('/auth/login')) {
           return _jsonResponse({'accessToken': 'access-1', 'refreshToken': 'refresh-1'}, 200);
         }

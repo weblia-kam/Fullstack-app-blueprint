@@ -2,7 +2,7 @@ import { Injectable, NestMiddleware } from "@nestjs/common";
 import type { Request, Response, NextFunction } from "express";
 import { InjectMetric } from "@willsoto/nestjs-prometheus";
 import type { Counter, Histogram } from "prom-client";
-import { HTTP_REQUEST_COUNTER, HTTP_REQUEST_DURATION } from "./metrics.module";
+import { HTTP_REQUEST_COUNTER, HTTP_REQUEST_DURATION } from "./metrics.constants";
 
 function resolveRoute(req: Request): string {
   const route = (req as Request & { route?: { path?: string } }).route?.path;
