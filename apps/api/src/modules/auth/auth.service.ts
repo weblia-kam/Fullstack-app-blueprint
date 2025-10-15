@@ -127,16 +127,20 @@ export class AuthService {
     if (exists) throw new BadRequestException("User already exists");
 
     const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+    const computedDisplayName = `${trimmedFirstName} ${trimmedLastName}`.trim();
+
     const user = await this.prisma.user.create({
       data: {
         email,
         phone: normalizedPhone,
-        firstName,
-        lastName,
+        ...(trimmedFirstName ? { firstName: trimmedFirstName } : {}),
+        ...(trimmedLastName ? { lastName: trimmedLastName } : {}),
         birthDate: birthDate ? new Date(`${birthDate}T00:00:00.000Z`) : null,
         passwordHash,
         acceptedTerms: true,
-        displayName: `${firstName} ${lastName}`.trim()
+        ...(computedDisplayName ? { displayName: computedDisplayName } : {})
       }
     });
 

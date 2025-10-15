@@ -4,9 +4,31 @@ import 'package:dio/dio.dart';
 
 import '../services/secure_storage_service.dart';
 
+const String _defaultApiBasePath = String.fromEnvironment(
+  'API_BASE_PATH',
+  defaultValue: '/api/v1',
+);
+const String _defaultApiOrigin = String.fromEnvironment(
+  'API_ORIGIN',
+  defaultValue: 'http://localhost:3000',
+);
+
 const _skipAuthKey = '__skipAuth';
 const _retriedKey = '__retried';
 const _refreshCallKey = '__refreshCall';
+
+String _resolveBaseUrl() {
+  final String origin = _defaultApiOrigin.endsWith('/')
+      ? _defaultApiOrigin.substring(0, _defaultApiOrigin.length - 1)
+      : _defaultApiOrigin;
+  final String basePath = _defaultApiBasePath.startsWith('/')
+      ? _defaultApiBasePath
+      : '/$_defaultApiBasePath';
+  final String normalizedBasePath =
+      basePath.endsWith('/') ? basePath.substring(0, basePath.length - 1) : basePath;
+  final String baseUrl = '$origin$normalizedBasePath';
+  return baseUrl;
+}
 
 class AuthExpiredException extends DioException {
   AuthExpiredException(RequestOptions requestOptions)
@@ -59,14 +81,6 @@ class ApiClient {
     ));
   }
 
-  static const String _defaultApiOrigin = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://api.example.com',
-  );
-  static const String _defaultApiBasePath = String.fromEnvironment(
-    'API_BASE_PATH',
-    defaultValue: '/api/v1',
-  );
   static const String _refreshEndpoint = String.fromEnvironment(
     'TOKEN_REFRESH_ENDPOINT',
     defaultValue: '/auth/refresh',
@@ -298,13 +312,3 @@ class ApiClient {
     }
   }
 }
-  static String _resolveBaseUrl() {
-    final origin = _defaultApiOrigin.endsWith('/')
-        ? _defaultApiOrigin.substring(0, _defaultApiOrigin.length - 1)
-        : _defaultApiOrigin;
-    final path = _defaultApiBasePath.startsWith('/')
-        ? _defaultApiBasePath
-        : '/$_defaultApiBasePath';
-    final normalizedPath = path.endsWith('/') ? path.substring(0, path.length - 1) : path;
-    return '$origin$normalizedPath';
-  }
